@@ -7,6 +7,10 @@
 #include "base/strings/stringprintf.h"
 #include "mojo/public/cpp/bindings/message.h"
 
+#if defined(CASTANETS)
+#include "base/debug/stack_trace.h"
+#endif
+
 namespace mojo {
 namespace internal {
 namespace {
@@ -66,6 +70,9 @@ const char* ValidationErrorToString(ValidationError error) {
 void ReportValidationError(ValidationContext* context,
                            ValidationError error,
                            const char* description) {
+#if defined(CASTANETS)
+  LOG(INFO) << __FUNCTION__ << "()" << std::endl << base::debug::StackTrace().ToString();
+#endif
   if (g_validation_error_observer) {
     g_validation_error_observer->set_last_error(error);
     return;
