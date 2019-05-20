@@ -23,7 +23,7 @@ extern "C" {
 typedef uint32_t MojoPlatformHandleType;
 
 #if defined(CASTANETS)
-const int kCastanetsHandle = 0;
+const int kCastanetsHandle = -2;
 #endif
 
 // An invalid handle value. Other contents of the |MojoPlatformHandle| are
