@@ -89,6 +89,8 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
 
 #if defined(GOOGLE_CHROME_BUILD)
   *result = config_dir.Append("google-chrome" + GetChannelSuffixForDataDir());
+#elif defined(CASTANETS)
+  *result = config_dir.Append("castanets");
 #else
   *result = config_dir.Append("chromium");
 #endif
