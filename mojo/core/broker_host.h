@@ -35,6 +35,11 @@ class BrokerHost : public Channel::Delegate,
   // Send |handle| to the client, to be used to establish a NodeChannel to us.
   bool SendChannel(PlatformHandle handle);
 
+#if defined(CASTANETS)
+  // Send a port number to the client for TCP socket.
+  bool SendPortNumber(int port);
+#endif
+
 #if defined(OS_WIN)
   // Sends a named channel to the client. Like above, but for named pipes.
   void SendNamedChannel(const base::StringPiece16& pipe_name);

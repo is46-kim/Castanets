@@ -205,11 +205,7 @@ void NodeController::SendBrokerClientInvitation(
       base::BindOnce(&NodeController::SendBrokerClientInvitationOnIOThread,
                      base::Unretained(this), std::move(scoped_target_process),
                      std::move(connection_params), temporary_node_name,
-#if defined(CASTANETS)
-                     process_error_callback, type));
-#else
                      process_error_callback));
-#endif
 }
 
 void NodeController::AcceptBrokerClientInvitation(
@@ -224,16 +220,8 @@ void NodeController::AcceptBrokerClientInvitation(
   // synchronously as the first message from the broker.
   DCHECK(connection_params.endpoint().is_valid());
   base::ElapsedTimer timer;
-#if defined(CASTANETS)
-  int port = mojo::kCastanetsBrokerPort;
-  if (type == "utility")
-      port = mojo::kCastanetsUtilityBrokerPort;
-  broker_ = std::make_unique<Broker>(
-      connection_params.TakeEndpoint().TakePlatformHandle(), port);
-#else
   broker_ = std::make_unique<Broker>(
       connection_params.TakeEndpoint().TakePlatformHandle());
-#endif
   PlatformChannelEndpoint endpoint = broker_->GetInviterEndpoint();
 
   if (!endpoint.is_valid()) {
@@ -345,28 +333,34 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
     ScopedProcessHandle target_process,
     ConnectionParams connection_params,
     ports::NodeName temporary_node_name,
-#if defined(CASTANETS)
-    const ProcessErrorCallback& process_error_callback, std::string type) {
-#else
     const ProcessErrorCallback& process_error_callback) {
-#endif
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
 #if !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_FUCHSIA)
 #if defined(CASTANETS)
-  int port;
-  if(type == "utility")
-    port = mojo::kCastanetsUtilityBrokerPort;
-  else
-    port = mojo::kCastanetsBrokerPort;
-  base::ScopedFD server_handle = CreateTCPServerHandle(port);
-  base::ScopedFD client_handle = CreateTCPDummyHandle();
-  ConnectionParams node_connection_params(mojo::PlatformChannelServerEndpoint(mojo::PlatformHandle(std::move(server_handle))));
-
-  // BrokerHost owns itself.
-  BrokerHost* broker_host =
-      new BrokerHost(target_process.get(), std::move(connection_params),
-                     process_error_callback);
-  bool channel_ok = broker_host->SendChannel((PlatformHandle(std::move(client_handle))));
+  bool channel_ok = false;
+  ConnectionParams node_connection_params;
+  if (connection_params.endpoint().is_valid()) {
+    // Unix Domain Socket
+    PlatformChannel node_channel;
+    node_connection_params = ConnectionParams(node_channel.TakeLocalEndpoint());
+    // BrokerHost owns itself.
+    BrokerHost* broker_host =
+        new BrokerHost(target_process.get(), std::move(connection_params),
+                       process_error_callback);
+    channel_ok = broker_host->SendChannel(
+        node_channel.TakeRemoteEndpoint().TakePlatformHandle());
+  } else {
+    // TCP Server Socket
+    uint16_t port = 0;
+    node_connection_params =
+        ConnectionParams(mojo::PlatformChannelServerEndpoint(
+            mojo::PlatformHandle(CreateTCPServerHandle(port, &port))));
+    // BrokerHost owns itself.
+    BrokerHost* broker_host =
+        new BrokerHost(target_process.get(), std::move(connection_params),
+                       process_error_callback);
+    channel_ok = broker_host->SendPortNumber(port);
+  }
 #else
   PlatformChannel node_channel;
   ConnectionParams node_connection_params(node_channel.TakeLocalEndpoint());

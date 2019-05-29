@@ -39,12 +39,7 @@ Channel::MessagePtr WaitForBrokerMessage(
   ssize_t read_result =
       SocketRecvmsg(socket_fd, const_cast<void*>(message->data()),
                     message->data_num_bytes(), &incoming_fds, true /* block */);
-#if defined(CASTANETS)
-  for (size_t i = 0; i < expected_num_handles; ++i) {
-    incoming_handles->push_back(PlatformHandle(base::ScopedFD(kCastanetsHandle)));
-    //incoming_handles.back().type = PlatformHandle::Type::POSIX_CHROMIE;
-  }
-#endif
+
   bool error = false;
   if (read_result < 0) {
     PLOG(ERROR) << "Recvmsg error";
@@ -52,13 +47,13 @@ Channel::MessagePtr WaitForBrokerMessage(
   } else if (static_cast<size_t>(read_result) != message->data_num_bytes()) {
     LOG(ERROR) << "Invalid node channel message";
     error = true;
-#if defined(CASTANETS)
-  } else if (incoming_handles->size() != expected_num_handles) {
-#else
   } else if (incoming_fds.size() != expected_num_handles) {
-#endif
+#if defined(CASTANETS)
+    LOG(INFO) << "Received unexpected number of handles";
+#else
     LOG(ERROR) << "Received unexpected number of handles";
     error = true;
+#endif
   }
 
   if (error)
@@ -80,11 +75,7 @@ Channel::MessagePtr WaitForBrokerMessage(
 
 }  // namespace
 
-#if defined(CASTANETS)
-Broker::Broker(PlatformHandle handle, int port) : sync_channel_(std::move(handle)) {
-#else
 Broker::Broker(PlatformHandle handle) : sync_channel_(std::move(handle)) {
-#endif
   CHECK(sync_channel_.is_valid());
 
   int fd = sync_channel_.GetFD().get();
@@ -96,15 +87,28 @@ Broker::Broker(PlatformHandle handle) : sync_channel_(std::move(handle)) {
 
   // Wait for the first message, which should contain a handle.
   std::vector<PlatformHandle> incoming_platform_handles;
-  if (WaitForBrokerMessage(fd, BrokerMessageType::INIT, 1, 0,
-                           &incoming_platform_handles)) {
 #if defined(CASTANETS)
-    inviter_endpoint_ = PlatformChannelEndpoint((PlatformHandle((mojo::CreateTCPClientHandle(port)))));
-#else
+  Channel::MessagePtr message =
+      WaitForBrokerMessage(fd, BrokerMessageType::INIT, 1, sizeof(InitData),
+                           &incoming_platform_handles);
+  if (incoming_platform_handles.size() > 0 &&
+      incoming_platform_handles[0].is_valid()) {
     inviter_endpoint_ =
         PlatformChannelEndpoint(std::move(incoming_platform_handles[0]));
-#endif
+  } else {
+    const BrokerMessageHeader* header =
+        static_cast<const BrokerMessageHeader*>(message->payload());
+    const InitData* data = reinterpret_cast<const InitData*>(header + 1);
+    inviter_endpoint_ = PlatformChannelEndpoint(
+        (PlatformHandle((mojo::CreateTCPClientHandle(data->port)))));
   }
+#else
+  if (WaitForBrokerMessage(fd, BrokerMessageType::INIT, 1, 0,
+                           &incoming_platform_handles)) {
+    inviter_endpoint_ =
+        PlatformChannelEndpoint(std::move(incoming_platform_handles[0]));
+  }
+#endif
 }
 
 Broker::~Broker() = default;

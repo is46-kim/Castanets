@@ -88,6 +88,23 @@ bool BrokerHost::SendChannel(PlatformHandle handle) {
   return true;
 }
 
+#if defined(CASTANETS)
+bool BrokerHost::SendPortNumber(int port) {
+  CHECK(channel_);
+
+  InitData* data;
+  Channel::MessagePtr message =
+      CreateBrokerMessage(BrokerMessageType::INIT, 0, 0, &data);
+#if defined(OS_WIN)
+  data->pipe_name_length = 0;
+#endif
+  data->port = port;
+
+  channel_->Write(std::move(message));
+  return true;
+}
+#endif
+
 #if defined(OS_WIN)
 
 void BrokerHost::SendNamedChannel(const base::StringPiece16& pipe_name) {

@@ -275,9 +275,11 @@ base::Optional<mojo::IncomingInvitation> InitializeMojoIPCChannel() {
           base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
               switches::kProcessType);
   if (process_type_str == switches::kUtilityProcess) {
-    endpoint = mojo::PlatformChannelEndpoint(mojo::PlatformHandle(mojo::CreateTCPClientHandle(mojo::kCastanetsUtilitySyncPort)));
+    endpoint = mojo::PlatformChannelEndpoint(mojo::PlatformHandle(
+        mojo::CreateTCPClientHandle(mojo::kCastanetsUtilityPort)));
   }  else {
-    endpoint = mojo::PlatformChannelEndpoint(mojo::PlatformHandle(mojo::CreateTCPClientHandle(mojo::kCastanetsSyncPort)));
+    endpoint = mojo::PlatformChannelEndpoint(mojo::PlatformHandle(
+        mojo::CreateTCPClientHandle(mojo::kCastanetsRendererPort)));
   }
 #else
   endpoint = mojo::PlatformChannelEndpoint(mojo::PlatformHandle(

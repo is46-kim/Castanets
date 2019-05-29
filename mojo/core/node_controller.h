@@ -168,11 +168,7 @@ class MOJO_SYSTEM_IMPL_EXPORT NodeController : public ports::NodeDelegate,
       ScopedProcessHandle target_process,
       ConnectionParams connection_params,
       ports::NodeName token,
-#if defined(CASTANETS)
-      const ProcessErrorCallback& process_error_callback,std::string="");
-#else
       const ProcessErrorCallback& process_error_callback);
-#endif
   void AcceptBrokerClientInvitationOnIOThread(
       ConnectionParams connection_params);
 
