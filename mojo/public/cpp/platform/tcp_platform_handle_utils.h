@@ -28,6 +28,9 @@ PlatformHandle CreateTCPServerHandle(uint16_t port,
                                      uint16_t* out_port = nullptr);
 
 COMPONENT_EXPORT(MOJO_CPP_PLATFORM)
+uint16_t GetTCPPort(const PlatformHandle* handle);
+
+COMPONENT_EXPORT(MOJO_CPP_PLATFORM)
 bool TCPServerAcceptConnection(
         base::PlatformFile server_fd,
         base::ScopedFD* connection_fd);

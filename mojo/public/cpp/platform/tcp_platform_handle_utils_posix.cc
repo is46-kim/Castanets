@@ -131,6 +131,14 @@ PlatformHandle CreateTCPServerHandle(uint16_t port, uint16_t* out_port) {
   return handle;
 }
 
+uint16_t GetTCPPort(const PlatformHandle* handle) {
+  struct sockaddr_in sin;
+  socklen_t len = sizeof(sin);
+  if (!getsockname(handle->GetFD().get(), (struct sockaddr*)&sin, &len))
+    return ntohs(sin.sin_port);
+  return 0;
+}
+
 bool TCPServerAcceptConnection(base::PlatformFile server_handle,
                                base::ScopedFD* connection_handle) {
   DCHECK(server_handle);

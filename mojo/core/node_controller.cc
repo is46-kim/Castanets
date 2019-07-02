@@ -377,13 +377,21 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
   } else {
     // TCP Server Socket
     uint16_t port = 0;
+    bool is_first_renderer =
+        !broker_ &&
+        (GetTCPPort(&connection_params.server_endpoint().platform_handle()) ==
+         kCastanetsRendererPort);
     node_connection_params =
         ConnectionParams(mojo::PlatformChannelServerEndpoint(
             mojo::PlatformHandle(CreateTCPServerHandle(port, &port))));
-    broker_ = std::make_unique<BrokerCastanets>(target_process.get(),
-                                                std::move(connection_params),
-                                                process_error_callback);
-    channel_ok = broker_->SendPortNumber(port);
+    BrokerCastanets* broker_castanets =
+        new BrokerCastanets(target_process.get(), std::move(connection_params),
+                            process_error_callback);
+    channel_ok = broker_castanets->SendPortNumber(port);
+
+    // |BrokerCastanets| does not support multiple renderer scenario.
+    if (is_first_renderer)
+      broker_ = std::unique_ptr<BrokerCastanets>(broker_castanets);
   }
 #else
   PlatformChannel node_channel;
