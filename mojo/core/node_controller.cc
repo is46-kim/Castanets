@@ -10,6 +10,7 @@
 
 #include "base/bind.h"
 #include "base/containers/queue.h"
+#include "base/debug/stack_trace.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/macros.h"
@@ -56,10 +57,29 @@ void GenerateRandomName(T* out) {
   base::RandBytes(out, sizeof(T));
 }
 #else
-template <typename T>
+#if 1
+static base::Lock locklock;
+void GenerateRandomName(ports::NodeName* out) {
+  base::AutoLock lock(locklock);
+  static int index = 0;
+  if ("utility" == base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type")) {
+    out->v1 = 0xA2;
+    out->v2 = 0xA2000;
+  } else if ("renderer" == base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type")) {
+    out->v1 = 0xA1;
+    out->v2 = 0xA1000;
+  } else {
+    out->v1 = 0xA0;
+    out->v2 = 0xA0000;
+  }
+  out->v2 += index++;
+}
+#else
+  template <typename T>
 void GenerateRandomName(T* out) {
   crypto::RandBytes(out, sizeof(T));
 }
+#endif
 #endif
 
 ports::NodeName GetRandomNodeName() {
@@ -158,7 +178,7 @@ NodeController::NodeController(Core* core)
     : core_(core),
       name_(GetRandomNodeName()),
       node_(new ports::Node(name_, this)) {
-  DVLOG(1) << "Initializing node " << name_;
+  LOG(INFO) << "Initializing node " << name_;
 }
 
 #if defined(OS_MACOSX) && !defined(OS_IOS)
@@ -263,6 +283,7 @@ void NodeController::ClosePort(const ports::PortRef& port) {
 int NodeController::SendUserMessage(
     const ports::PortRef& port,
     std::unique_ptr<ports::UserMessageEvent> message) {
+  // LOG(INFO) << __FUNCTION__ << "() " << name() << ", port:" << port.name();
   return node_->SendUserMessage(port, std::move(message));
 }
 
@@ -379,7 +400,7 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
     uint16_t port = 0;
     bool is_first_renderer =
         !broker_ &&
-        (GetTCPPort(&connection_params.server_endpoint().platform_handle()) ==
+        (GetTCPPort(connection_params.server_endpoint().platform_handle().GetFD().get()) ==
          kCastanetsRendererPort);
     node_connection_params =
         ConnectionParams(mojo::PlatformChannelServerEndpoint(
@@ -391,7 +412,7 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
 
     // |BrokerCastanets| does not support multiple renderer scenario.
     if (is_first_renderer)
-      broker_ = std::unique_ptr<BrokerCastanets>(broker_castanets);
+      broker_.reset(broker_castanets);
   }
 #else
   PlatformChannel node_channel;
@@ -549,14 +570,14 @@ void NodeController::AddPeer(const ports::NodeName& name,
       // This can happen normally if two nodes race to be introduced to each
       // other. The losing pipe will be silently closed and introduction should
       // not be affected.
-      DVLOG(1) << "Ignoring duplicate peer name " << name;
+      VLOG(1) << "Ignoring duplicate peer name " << name;
       return;
     }
 
     auto result = peers_.insert(std::make_pair(name, channel));
     DCHECK(result.second);
 
-    DVLOG(2) << "Accepting new peer " << name << " on node " << name_;
+    LOG(INFO) << "Accepting new peer " << name << " on node " << name_;
 
     auto it = pending_peer_messages_.find(name);
     if (it != pending_peer_messages_.end()) {
@@ -636,9 +657,14 @@ void NodeController::DropPeer(const ports::NodeName& name,
 
 void NodeController::SendPeerEvent(const ports::NodeName& name,
                                    ports::ScopedEvent event) {
+  ports::PortName port = event->port_name();
   Channel::MessagePtr event_message = SerializeEventMessage(std::move(event));
   if (!event_message)
     return;
+  if(event_message->has_handles()) {
+    LOG(INFO) << __FUNCTION__ << "() >>>>>>>>>> num_handles : " << event_message->num_handles() << ", node:" << name << ", port:" << port << "<<<<<<<<<<";
+    // LOG(INFO) << __FUNCTION__ << "() " << base::debug::StackTrace().ToString();
+  }
   scoped_refptr<NodeChannel> peer = GetPeerChannel(name);
 #if defined(OS_WIN)
   if (event_message->has_handles()) {
@@ -1031,6 +1057,7 @@ void NodeController::OnEventMessage(const ports::NodeName& from_node,
                                     Channel::MessagePtr channel_message) {
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
 
+  int handle_size = channel_message->num_handles();
   auto event = DeserializeEventMessage(from_node, std::move(channel_message));
   if (!event) {
     // We silently ignore unparseable events, as they may come from a process
@@ -1039,6 +1066,16 @@ void NodeController::OnEventMessage(const ports::NodeName& from_node,
     return;
   }
 
+  if(handle_size)
+    LOG(INFO) << __FUNCTION__ << "() from node:" << from_node << ", handles:" << handle_size << ", type:" << event->type();
+  if(event->type() == 0) {
+    ports::Event::PortDescriptor* p = static_cast<ports::UserMessageEvent*>(event.get())->port_descriptors();
+    if (p && handle_size > 0) {
+      LOG(INFO) << __FUNCTION__
+                << "() peer:" << p->peer_port_name << "@" << p->peer_node_name
+                << ", refer:" << p->referring_port_name << "@" << p->referring_node_name;
+    }
+  }
   node_->AcceptEvent(std::move(event));
 
   AttemptShutdownIfRequested();
@@ -1050,7 +1087,7 @@ void NodeController::OnRequestPortMerge(
     const std::string& name) {
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
 
-  DVLOG(2) << "Node " << name_ << " received RequestPortMerge for name " << name
+  LOG(INFO) << "Node " << name_ << " received RequestPortMerge for name " << name
            << " and port " << connector_port_name << "@" << from_node;
 
   ports::PortRef local_port;
@@ -1114,47 +1151,55 @@ void NodeController::OnRequestIntroduction(const ports::NodeName& from_node,
 void NodeController::OnIntroduce(const ports::NodeName& from_node,
                                  const ports::NodeName& name,
                                  PlatformHandle channel_handle) {
+  LOG(INFO) << __FUNCTION__ << "() name:" << name << ", from_node:" << from_node << ", channel_handle.is_valid:" << channel_handle.is_valid();
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
 
   if (!channel_handle.is_valid()) {
+#if defined(CASTANETS)
+    NamedPlatformChannel::ServerName shmem_name = ".castanets.shmem.network";
+    std::string process_type_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type");
+    LOG(INFO) << __FUNCTION__ << "() " << process_type_str;
+    if (process_type_str == "utility") {
+      NamedPlatformChannel::Options options;
+      options.server_name = shmem_name;
+      mojo::NamedPlatformChannel named_channel(options);
+      scoped_refptr<NodeChannel> channel = NodeChannel::Create(
+          this, ConnectionParams(named_channel.TakeServerEndpoint()),
+          io_task_runner_, ProcessErrorCallback());
+      LOG(INFO) << "Adding new peer " << name << " via broker introduction.";
+      AddPeer(name, channel, true /* start_channel */);
+    } else {
+      PlatformChannelEndpoint channel_endpoint;
+      for (int nsec = 1; nsec <= 128; nsec <<= 1) {
+        channel_endpoint = NamedPlatformChannel::ConnectToServer(shmem_name);
+        if (channel_endpoint.is_valid())
+          break;
+        if (nsec <= 128 / 2)
+          sleep(nsec);
+      }
+      scoped_refptr<NodeChannel> channel = NodeChannel::Create(
+          this, ConnectionParams(std::move(channel_endpoint)), io_task_runner_,
+          ProcessErrorCallback());
+      LOG(INFO) << "Adding new peer " << name << " via broker introduction.";
+      AddPeer(name, channel, true /* start_channel */);
+    }
+#else
     node_->LostConnectionToNode(name);
 
-    DVLOG(1) << "Could not be introduced to peer " << name;
+    LOG(ERROR) << "Could not be introduced to peer " << name;
     base::AutoLock lock(peers_lock_);
     pending_peer_messages_.erase(name);
+#endif
     return;
   }
 
-#if defined(CASTANETS)
-  std::string process_type_str =
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type");
-  if (process_type_str == "utility") {
-    scoped_refptr<NodeChannel> channel = NodeChannel::Create(
-        this,
-        ConnectionParams(mojo::PlatformChannelServerEndpoint(
-            mojo::CreateTCPServerHandle(mojo::kCastanetsNonBrokerPort))),
-        io_task_runner_, ProcessErrorCallback());
-    DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
-    AddPeer(name, channel, true /* start_channel */);
-  }
-  else {
-    scoped_refptr<NodeChannel> channel = NodeChannel::Create(
-        this,
-        ConnectionParams(PlatformChannelEndpoint(
-            mojo::CreateTCPClientHandle(mojo::kCastanetsNonBrokerPort))),
-        io_task_runner_, ProcessErrorCallback());
-    DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
-    AddPeer(name, channel, true /* start_channel */);
-  }
-#else
   scoped_refptr<NodeChannel> channel = NodeChannel::Create(
       this,
       ConnectionParams(PlatformChannelEndpoint(std::move(channel_handle))),
       io_task_runner_, ProcessErrorCallback());
       DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
       AddPeer(name, channel, true /* start_channel */);
-#endif
-
 }
 
 void NodeController::OnBroadcast(const ports::NodeName& from_node,

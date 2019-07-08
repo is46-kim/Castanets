@@ -12,10 +12,12 @@
 #include <sys/uio.h>
 #endif
 
+#include "base/debug/stack_trace.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "build/build_config.h"
+#include "mojo/public/cpp/platform/tcp_platform_handle_utils.h"
 
 namespace mojo {
 
@@ -108,6 +110,12 @@ ssize_t SendmsgWithHandles(base::PlatformFile socket,
   DCHECK_GT(num_iov, 0u);
   DCHECK(!descriptors.empty());
   DCHECK_LE(descriptors.size(), kMaxSendmsgHandles);
+
+  if(!descriptors.empty() && GetTCPPort(socket) > 0) {
+    std::string bt = base::debug::StackTrace().ToString();
+    LOG(INFO) << __FUNCTION__ << "()socket:" << socket << ", GetTCPPort:" << GetTCPPort(socket) << ", num_iov:" << num_iov << ", size:" << descriptors.size();
+    LOG(INFO) << __FUNCTION__ << "() " << bt;
+  }
 
   char cmsg_buf[CMSG_SPACE(kMaxSendmsgHandles * sizeof(int))];
   struct msghdr msg = {};

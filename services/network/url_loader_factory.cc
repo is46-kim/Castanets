@@ -64,6 +64,7 @@ void URLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& url_request,
     mojom::URLLoaderClientPtr client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", request_id:" << request_id << ", " << url_request.url.possibly_invalid_spec();
   bool report_raw_headers = false;
   if (url_request.report_raw_headers) {
     const NetworkService* service = context_->network_service();

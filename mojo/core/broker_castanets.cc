@@ -194,7 +194,7 @@ bool BrokerCastanets::SyncSharedBuffer(
 void BrokerCastanets::SyncSharedBufferImpl(const base::UnguessableToken& guid,
                                            uint8_t* memory, size_t offset,
                                            size_t sync_size, size_t mapped_size) {
-  bool in_io_thread = io_thread_checker_.CalledOnValidThread(); // workaround
+  bool in_io_thread = io_thread_checker_.CalledOnValidThread();  // workaround
   if (!in_io_thread)
     BeginSync(guid);
 
@@ -229,8 +229,7 @@ void BrokerCastanets::OnBufferSync(uint64_t guid_high, uint64_t guid_low,
       base::UnguessableToken::Deserialize(guid_high, guid_low);
 
   VLOG(2) << "Recv sync" << guid << " offset: " << offset
-          << ", sync_size: " << sync_bytes
-          << ", buffer_size: " << buffer_bytes;
+          << ", sync_size: " << sync_bytes << ", buffer_size: " << buffer_bytes;
 
   const base::SharedMemoryTracker::MappingInfo* mapping =
       base::SharedMemoryTracker::GetInstance()->FindMappedMemory(guid);
@@ -498,8 +497,8 @@ void BrokerCastanets::BeginSync(const base::UnguessableToken& guid) {
   base::AutoLock lock(sync_lock_);
   CHECK(sync_waits_.find(guid) == sync_waits_.end());
 
-  sync_waits_.emplace(std::piecewise_construct,
-                      std::make_tuple(guid), std::make_tuple());
+  sync_waits_.emplace(std::piecewise_construct, std::make_tuple(guid),
+                      std::make_tuple());
 }
 
 void BrokerCastanets::EndSync(const base::UnguessableToken& guid) {

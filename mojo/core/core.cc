@@ -11,6 +11,7 @@
 
 #include "base/bind.h"
 #include "base/containers/stack_container.h"
+#include "base/debug/stack_trace.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/macros.h"
@@ -530,6 +531,7 @@ MojoResult Core::GetMessageContext(MojoMessageHandle message_handle,
 MojoResult Core::CreateMessagePipe(const MojoCreateMessagePipeOptions* options,
                                    MojoHandle* message_pipe_handle0,
                                    MojoHandle* message_pipe_handle1) {
+  std::string bt = base::debug::StackTrace().ToString();
   RequestContext request_context;
   ports::PortRef port0, port1;
   GetNodeController()->node()->CreatePortPair(&port0, &port1);
@@ -538,6 +540,11 @@ MojoResult Core::CreateMessagePipe(const MojoCreateMessagePipeOptions* options,
   DCHECK(message_pipe_handle1);
 
   uint64_t pipe_id = base::RandUint64();
+  static int count =0;
+  {
+    base::AutoLock lock(handles_->GetLock());
+    pipe_id = count++;
+  }
 
   *message_pipe_handle0 = AddDispatcher(
       new MessagePipeDispatcher(GetNodeController(), port0, pipe_id, 0));
@@ -556,6 +563,9 @@ MojoResult Core::CreateMessagePipe(const MojoCreateMessagePipeOptions* options,
     return MOJO_RESULT_RESOURCE_EXHAUSTED;
   }
 
+  LOG(INFO) << __FUNCTION__ << "() pipe_id:" << pipe_id << ", " << port0.name() << "[" << *message_pipe_handle0 << "] -> " << port1.name() << "[" << *message_pipe_handle1 << "]";
+  //if(pipe_id == 77 || pipe_id == 78 || pipe_id == 91 || pipe_id == 133 || pipe_id == 139)
+  LOG(INFO) << __FUNCTION__ << "() pipe_id:" << pipe_id << " " << bt;
   return MOJO_RESULT_OK;
 }
 
@@ -658,6 +668,7 @@ MojoResult Core::NotifyBadMessage(MojoMessageHandle message_handle,
 MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
                                 MojoHandle* data_pipe_producer_handle,
                                 MojoHandle* data_pipe_consumer_handle) {
+  std::string bt = base::debug::StackTrace().ToString();
   RequestContext request_context;
   if (options && options->struct_size < sizeof(MojoCreateDataPipeOptions))
     return MOJO_RESULT_INVALID_ARGUMENT;
@@ -707,7 +718,12 @@ MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
   DCHECK(data_pipe_producer_handle);
   DCHECK(data_pipe_consumer_handle);
   base::UnsafeSharedMemoryRegion consumer_region = producer_region.Duplicate();
-  uint64_t pipe_id = base::RandUint64();
+  static int count = 10000;
+  uint64_t pipe_id = 0;// = base::RandUint64();
+  {
+    base::AutoLock lock(handles_->GetLock());
+    pipe_id = count++;//base::RandUint64();
+  }
   scoped_refptr<Dispatcher> producer = DataPipeProducerDispatcher::Create(
       GetNodeController(), port0, std::move(producer_region), create_options,
       pipe_id);
@@ -723,6 +739,8 @@ MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
 
   *data_pipe_producer_handle = AddDispatcher(producer);
   *data_pipe_consumer_handle = AddDispatcher(consumer);
+  //LOG(INFO) << __FUNCTION__ << "() Producer:" << *data_pipe_producer_handle << ", " << GetNodeController()->name() << ", port:"<< port0.name();
+  //LOG(INFO) << __FUNCTION__ << "() Consumer:" << *data_pipe_consumer_handle << ", " << GetNodeController()->name() << ", port:"<< port1.name();
   if (*data_pipe_producer_handle == MOJO_HANDLE_INVALID ||
       *data_pipe_consumer_handle == MOJO_HANDLE_INVALID) {
     if (*data_pipe_producer_handle != MOJO_HANDLE_INVALID) {
@@ -735,6 +753,8 @@ MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
     return MOJO_RESULT_RESOURCE_EXHAUSTED;
   }
 
+  LOG(INFO) << __FUNCTION__ << "() pipe_id:" << pipe_id << ", " << port0.name() << "[" << *data_pipe_producer_handle << "] -> " << port1.name() << "[" << *data_pipe_consumer_handle << "]";
+  LOG(INFO) << __FUNCTION__ << "() pipe_id:" << pipe_id << " " << bt;
   return MOJO_RESULT_OK;
 }
 

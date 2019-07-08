@@ -50,6 +50,7 @@ URLResponseBodyConsumer::URLResponseBodyConsumer(
                       task_runner),
       task_runner_(task_runner),
       has_seen_end_of_data_(!handle_.is_valid()) {
+  LOG(INFO) << __FUNCTION__ << "() id:" << request_id_;
   handle_watcher_.Watch(
       handle_.get(), MOJO_HANDLE_SIGNAL_READABLE,
       base::Bind(&URLResponseBodyConsumer::OnReadable, base::Unretained(this)));
@@ -146,6 +147,7 @@ void URLResponseBodyConsumer::OnReadable(MojoResult unused) {
         resource_dispatcher_->GetPendingRequestInfo(request_id_);
     DCHECK(request_info);
 
+    LOG(INFO) << __FUNCTION__ << "() id:" << request_id_ << ", url:" << request_info->url.possibly_invalid_spec();
     request_info->peer->OnReceivedData(std::make_unique<ReceivedData>(
         static_cast<const char*>(buffer), available, this));
   }

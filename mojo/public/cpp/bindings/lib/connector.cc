@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "base/bind.h"
+#include "base/debug/stack_trace.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -149,6 +150,7 @@ Connector::Connector(ScopedMessagePipeHandle message_pipe,
       incoming_serialization_mode_(g_default_incoming_serialization_mode),
       nesting_observer_(RunLoopNestingObserver::GetForThread()),
       weak_factory_(this) {
+  //LOG(INFO) << __FUNCTION__ << "()" << base::debug::StackTrace().ToString();
   if (config == MULTI_THREADED_SEND)
     lock_.emplace();
 

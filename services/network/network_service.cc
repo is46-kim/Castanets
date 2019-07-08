@@ -9,6 +9,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
@@ -93,6 +94,7 @@ NetworkService::NetworkService(
     mojom::NetworkServiceRequest request,
     net::NetLog* net_log)
     : registry_(std::move(registry)), binding_(this) {
+  LOG(INFO) << __FUNCTION__ << "() " << base::debug::StackTrace().ToString();
   DCHECK(!g_network_service);
   g_network_service = this;
   // |registry_| is nullptr when an in-process NetworkService is
@@ -398,6 +400,9 @@ void NetworkService::OnBindInterface(
     const service_manager::BindSourceInfo& source_info,
     const std::string& interface_name,
     mojo::ScopedMessagePipeHandle interface_pipe) {
+  std::string bt = base::debug::StackTrace().ToString();
+  LOG(INFO) << __FUNCTION__ << "()" << interface_name << ", " << interface_pipe->value();
+  LOG(INFO) << __FUNCTION__ << "() " << bt;
   registry_->BindInterface(interface_name, std::move(interface_pipe));
 }
 

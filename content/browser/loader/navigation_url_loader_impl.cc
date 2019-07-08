@@ -695,6 +695,7 @@ class NavigationURLLoaderImpl::URLLoaderRequestController
       // |single_request_handler|.
       DCHECK(interceptor);
       default_loader_used_ = false;
+      LOG(INFO) << __FUNCTION__ << "() single_request_handler";
       url_loader_ = ThrottlingURLLoader::CreateLoaderAndStart(
           base::MakeRefCounted<SingleRequestURLLoaderFactory>(
               std::move(single_request_handler)),
@@ -774,6 +775,7 @@ class NavigationURLLoaderImpl::URLLoaderRequestController
       // be intercepted by any other interceptors since it means that a request
       // interceptor already intercepted the request and it attached its info to
       // the request.
+      LOG(INFO) << __FUNCTION__ << "() !kNetworkService";
       url_loader_ = ThrottlingURLLoader::CreateLoaderAndStart(
           base::MakeRefCounted<SingleRequestURLLoaderFactory>(
               default_request_handler_factory_.Run(
@@ -838,6 +840,7 @@ class NavigationURLLoaderImpl::URLLoaderRequestController
     url_chain_.push_back(resource_request_->url);
     uint32_t options = GetURLLoaderOptions(resource_request_->resource_type ==
                                            RESOURCE_TYPE_MAIN_FRAME);
+    LOG(INFO) << __FUNCTION__ << "() type:" << resource_request_->resource_type;
     url_loader_ = ThrottlingURLLoader::CreateLoaderAndStart(
         factory, CreateURLLoaderThrottles(), frame_tree_node_id_,
         global_request_id_.request_id, options, resource_request_.get(), this,

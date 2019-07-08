@@ -37,6 +37,7 @@ void URLLoaderFactoryImpl::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   ResourceDispatcherHostImpl* rdh = ResourceDispatcherHostImpl::Get();
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", this:" << this << ", url:" << url_request.url.possibly_invalid_spec();
   rdh->OnRequestResourceWithMojo(
       requester_info_.get(), routing_id, request_id, options, url_request,
       std::move(request), std::move(client),

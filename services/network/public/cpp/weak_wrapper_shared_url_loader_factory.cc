@@ -32,6 +32,7 @@ void WeakWrapperSharedURLLoaderFactory::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   if (!factory())
     return;
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", request_id:" << request_id << ", " << request.url.possibly_invalid_spec();
   factory()->CreateLoaderAndStart(std::move(loader), routing_id, request_id,
                                   options, request, std::move(client),
                                   traffic_annotation);

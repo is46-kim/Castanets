@@ -85,6 +85,7 @@ void SingleRequestURLLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& request,
     network::mojom::URLLoaderClientPtr client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", url:" << request.url.possibly_invalid_spec();
   state_->HandleRequest(std::move(loader), std::move(client));
 }
 

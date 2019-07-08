@@ -131,11 +131,13 @@ PlatformHandle CreateTCPServerHandle(uint16_t port, uint16_t* out_port) {
   return handle;
 }
 
-uint16_t GetTCPPort(const PlatformHandle* handle) {
-  struct sockaddr_in sin;
-  socklen_t len = sizeof(sin);
-  if (!getsockname(handle->GetFD().get(), (struct sockaddr*)&sin, &len))
-    return ntohs(sin.sin_port);
+uint16_t GetTCPPort(base::PlatformFile socket) {
+  struct sockaddr_storage addr;
+  socklen_t len = sizeof(addr);
+  if (!getsockname(socket, (struct sockaddr*)&addr, &len)) {
+    if (addr.ss_family == AF_INET)
+      return ntohs(((struct sockaddr_in*)&addr)->sin_port);
+  }
   return 0;
 }
 

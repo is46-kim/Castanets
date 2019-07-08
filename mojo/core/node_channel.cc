@@ -338,6 +338,7 @@ void NodeChannel::RequestPortMerge(const ports::PortName& connector_port_name,
 }
 
 void NodeChannel::RequestIntroduction(const ports::NodeName& name) {
+  LOG(INFO) << __FUNCTION__ << "()";
   IntroductionData* data;
   Channel::MessagePtr message = CreateMessage(
       MessageType::REQUEST_INTRODUCTION, sizeof(IntroductionData), 0, &data);
@@ -347,6 +348,7 @@ void NodeChannel::RequestIntroduction(const ports::NodeName& name) {
 
 void NodeChannel::Introduce(const ports::NodeName& name,
                             PlatformHandle channel_handle) {
+  LOG(INFO) << __FUNCTION__ << "()";
   IntroductionData* data;
   std::vector<PlatformHandle> handles;
   if (channel_handle.is_valid())
@@ -555,6 +557,9 @@ void NodeChannel::OnChannelMessage(const void* payload,
           new Channel::Message(payload_size, handles.size()));
       message->SetHandles(std::move(handles));
       memcpy(message->mutable_payload(), payload, payload_size);
+      if(handles.size()) {
+        LOG(INFO) << __FUNCTION__ << "() node:" << remote_node_name_ << ", handles:" << handles.size();
+      }
       delegate_->OnEventMessage(remote_node_name_, std::move(message));
       return;
     }

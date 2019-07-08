@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/debug/stack_trace.h"
 #include "base/files/file.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -319,6 +320,10 @@ URLLoader::URLLoader(
       network_usage_accumulator_(std::move(network_usage_accumulator)),
       first_auth_attempt_(true),
       weak_ptr_factory_(this) {
+  std::string bt = base::debug::StackTrace().ToString();
+  LOG(INFO) << __FUNCTION__ << "() frame_id:" << render_frame_id_ << ", id:" << request_id_ << ", url : " << request.url.possibly_invalid_spec();
+  if (render_frame_id_ == 1 || render_frame_id_ == 3)
+    LOG(INFO) << __FUNCTION__ << "() " << bt;
   DCHECK(delete_callback_);
   if (!base::FeatureList::IsEnabled(features::kNetworkService)) {
     CHECK(!url_loader_client_.internal_state()
@@ -329,6 +334,13 @@ URLLoader::URLLoader(
         << "disabled, as that skips security checks in ResourceDispatcherHost. "
         << "The only acceptable usage is the browser using SimpleURLLoader.";
   }
+
+/*  {
+    mojom::URLLoaderClientPtr client;
+    URLLoaderClientRequest req = mojo::MakeRequest(&client);
+  }*/
+
+
   if (report_raw_headers_) {
     options_ |= mojom::kURLLoadOptionSendSSLInfoWithResponse |
                 mojom::kURLLoadOptionSendSSLInfoForCertificateError;
@@ -661,6 +673,7 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
   }
 
   mojo::DataPipe data_pipe(kDefaultAllocationSize);
+  LOG(INFO) << __FUNCTION__ << "() frame_id:" << render_frame_id_ << ", id:" << request_id_ << ", url:" << url_request_->url().possibly_invalid_spec() << " DataPipe:" << data_pipe.producer_handle->value() << "->" << data_pipe.consumer_handle->value();
   response_body_stream_ = std::move(data_pipe.producer_handle);
   consumer_handle_ = std::move(data_pipe.consumer_handle);
   peer_closed_handle_watcher_.Watch(
@@ -955,6 +968,8 @@ void URLLoader::DeleteSelf() {
 }
 
 void URLLoader::SendResponseToClient() {
+  LOG(INFO) << __FUNCTION__ << "() ******************";
+  LOG(INFO) << __FUNCTION__ << "() frame_id:" << render_frame_id_ << ", id:" << request_id_ << ", url:" << url_request_->url().possibly_invalid_spec();
   url_loader_client_->OnReceiveResponse(response_->head);
 
   net::IOBufferWithSize* metadata =
@@ -966,6 +981,7 @@ void URLLoader::SendResponseToClient() {
         std::vector<uint8_t>(data, data + metadata->size()));
   }
 
+  LOG(INFO) << __FUNCTION__ << "() frame_id:" << render_frame_id_ << ", id:" << request_id_ << " > OnStartLoadingResponseBody() value:" << consumer_handle_->value();
   url_loader_client_->OnStartLoadingResponseBody(std::move(consumer_handle_));
   response_ = nullptr;
 }
@@ -1058,6 +1074,7 @@ URLLoader::BlockResponseForCorbResult URLLoader::BlockResponseForCorb() {
 
   // Send stripped headers to the real URLLoaderClient.
   CrossOriginReadBlocking::SanitizeBlockedResponse(response_);
+  LOG(INFO) << __FUNCTION__ << "() > OnReceiveResponse";
   url_loader_client_->OnReceiveResponse(response_->head);
 
   // Send empty body to the real URLLoaderClient.

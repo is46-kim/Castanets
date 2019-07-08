@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/atomicops.h"
+#include "base/command_line.h"
 #include "base/containers/stack_container.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -50,15 +51,30 @@ class RandomNameGenerator {
 
   PortName GenerateRandomPortName() {
     base::AutoLock lock(lock_);
+#if 1
+    if ("utility" == base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type")) {
+      cache_[0].v1 = 0xF2;
+      cache_[0].v2 = 0xF2000;
+    } else if ("renderer" == base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type")) {
+      cache_[0].v1 = 0xF1;
+      cache_[0].v2 = 0xF1000;
+    } else {
+      cache_[0].v1 = 0xF0;
+      cache_[0].v2 = 0xF0000;
+    }
+    cache_[0].v2 += cache_index_++;
+    return cache_[0];
+#else
     if (cache_index_ == kRandomNameCacheSize) {
 #if defined(OS_NACL)
       base::RandBytes(cache_, sizeof(PortName) * kRandomNameCacheSize);
 #else
-      crypto::RandBytes(cache_, sizeof(PortName) * kRandomNameCacheSize);
+      crypto::RandBytes(cache_[2], sizeof(PortName) * (kRandomNameCacheSize-2));
 #endif
       cache_index_ = 0;
     }
     return cache_[cache_index_++];
+#endif
   }
 
  private:
@@ -111,9 +127,9 @@ bool Node::CanShutdownCleanly(ShutdownPolicy policy) {
   base::AutoLock ports_lock(ports_lock_);
 
   if (policy == ShutdownPolicy::DONT_ALLOW_LOCAL_PORTS) {
-#if DCHECK_IS_ON()
+#if 1 //DCHECK_IS_ON()
     for (auto& entry : ports_) {
-      DVLOG(2) << "Port " << entry.first << " referencing node "
+      LOG(INFO) << "Port " << entry.first << " referencing node "
                << entry.second->peer_node_name << " is blocking shutdown of "
                << "node " << name_ << " (state=" << entry.second->state << ")";
     }
@@ -133,8 +149,8 @@ bool Node::CanShutdownCleanly(ShutdownPolicy policy) {
     auto* port = locker.port();
     if (port->peer_node_name != name_ && port->state != Port::kReceiving) {
       can_shutdown = false;
-#if DCHECK_IS_ON()
-      DVLOG(2) << "Port " << entry.first << " referencing node "
+#if 1 //DCHECK_IS_ON()
+      LOG(INFO) << "Port " << entry.first << " referencing node "
                << port->peer_node_name << " is blocking shutdown of "
                << "node " << name_ << " (state=" << port->state << ")";
 #else
@@ -188,6 +204,7 @@ int Node::InitializePort(const PortRef& port_ref,
     port->state = Port::kReceiving;
     port->peer_node_name = peer_node_name;
     port->peer_port_name = peer_port_name;
+    // LOG(INFO) << __FUNCTION__ << "() node:" << name_ << ", init :" << port_ref.name() << " - :" << peer_node_name << ", " << peer_port_name;
   }
 
   delegate_->PortStatusChanged(port_ref);
@@ -213,6 +230,8 @@ int Node::CreatePortPair(PortRef* port0_ref, PortRef* port1_ref) {
   rv = InitializePort(*port1_ref, name_, port0_ref->name());
   if (rv != OK)
     return rv;
+
+  // LOG(INFO) << __FUNCTION__ << "() node:" << name_ << ", PortPair :" << port0_ref->name() << "-" << port1_ref->name();
 
   return OK;
 }
@@ -316,7 +335,7 @@ int Node::GetMessage(const PortRef& port_ref,
                      MessageFilter* filter) {
   *message = nullptr;
 
-  DVLOG(4) << "GetMessage for " << port_ref.name() << "@" << name_;
+  //LOG(INFO) << "GetMessage for " << port_ref.name() << "@" << name_;
 
   {
     SinglePortLocker locker(&port_ref);
@@ -402,7 +421,7 @@ int Node::MergePorts(const PortRef& port_ref,
   {
     SinglePortLocker locker(&port_ref);
 
-    DVLOG(1) << "Sending MergePort from " << port_ref.name() << "@" << name_
+    LOG(INFO) << "Sending MergePort from " << port_ref.name() << "@" << name_
              << " to " << destination_port_name << "@" << destination_node_name;
 
     // Send the port-to-merge over to the destination node so it can be merged
@@ -429,7 +448,7 @@ int Node::MergePorts(const PortRef& port_ref,
 }
 
 int Node::MergeLocalPorts(const PortRef& port0_ref, const PortRef& port1_ref) {
-  DVLOG(1) << "Merging local ports " << port0_ref.name() << "@" << name_
+  LOG(INFO) << "Merging local ports " << port0_ref.name() << "@" << name_
            << " and " << port1_ref.name() << "@" << name_;
   return MergePortsInternal(port0_ref, port1_ref,
                             true /* allow_close_on_bad_state */);
@@ -439,7 +458,7 @@ int Node::LostConnectionToNode(const NodeName& node_name) {
   // We can no longer send events to the given node. We also can't expect any
   // PortAccepted events.
 
-  DVLOG(1) << "Observing lost connection from node " << name_ << " to node "
+  LOG(INFO) << "Observing lost connection from node " << name_ << " to node "
            << node_name;
 
   DestroyAllPortsWithPeer(node_name, kInvalidPortName);
@@ -457,9 +476,11 @@ int Node::OnUserMessage(std::unique_ptr<UserMessageEvent> message) {
     ports_buf << message->ports()[i];
   }
 
-  DVLOG(4) << "OnUserMessage " << message->sequence_num()
-           << " [ports=" << ports_buf.str() << "] at " << port_name << "@"
-           << name_;
+  if (message->num_ports()) {
+    LOG(INFO) << "OnUserMessage " << message->sequence_num()
+             << " [ports=" << ports_buf.str() << "] at " << port_name << "@"
+             << name_;
+  }
 #endif
 
   // Even if this port does not exist, cannot receive anymore messages or is
@@ -519,7 +540,7 @@ int Node::OnUserMessage(std::unique_ptr<UserMessageEvent> message) {
   }
 
   if (!message_accepted) {
-    DVLOG(2) << "Message not accepted!\n";
+    LOG(INFO) << "Message not accepted!\n";
     // Close all newly accepted ports as they are effectively orphaned.
     for (size_t i = 0; i < message->num_ports(); ++i) {
       PortRef attached_port_ref;
@@ -541,10 +562,10 @@ int Node::OnPortAccepted(std::unique_ptr<PortAcceptedEvent> event) {
   if (GetPort(event->port_name(), &port_ref) != OK)
     return ERROR_PORT_UNKNOWN;
 
-#if DCHECK_IS_ON()
+#if 1 // DCHECK_IS_ON()
   {
     SinglePortLocker locker(&port_ref);
-    DVLOG(2) << "PortAccepted at " << port_ref.name() << "@" << name_
+    LOG(INFO) << "PortAccepted at " << port_ref.name() << "@" << name_
              << " pointing to " << locker.port()->peer_port_name << "@"
              << locker.port()->peer_node_name;
   }
@@ -573,7 +594,7 @@ int Node::OnObserveProxy(std::unique_ptr<ObserveProxyEvent> event) {
   // We can then silently ignore this message.
   PortRef port_ref;
   if (GetPort(event->port_name(), &port_ref) != OK) {
-    DVLOG(1) << "ObserveProxy: " << event->port_name() << "@" << name_
+    LOG(INFO) << "ObserveProxy: " << event->port_name() << "@" << name_
              << " not found";
     return OK;
   }
@@ -753,7 +774,7 @@ int Node::OnMergePort(std::unique_ptr<MergePortEvent> event) {
   PortRef port_ref;
   GetPort(event->port_name(), &port_ref);
 
-  DVLOG(1) << "MergePort at " << port_ref.name() << "@" << name_
+  LOG(INFO) << "MergePort at " << port_ref.name() << "@" << name_
            << " merging with proxy " << event->new_port_name() << "@" << name_
            << " pointing to " << event->new_port_descriptor().peer_port_name
            << "@" << event->new_port_descriptor().peer_node_name
@@ -790,7 +811,7 @@ int Node::AddPortWithName(const PortName& port_name, scoped_refptr<Port> port) {
   base::AutoLock lock(ports_lock_);
   if (!ports_.emplace(port_name, std::move(port)).second)
     return OOPS(ERROR_PORT_EXISTS);  // Suggests a bad UUID generator.
-  DVLOG(2) << "Created port " << port_name << "@" << name_;
+  // LOG(INFO) << "Created port " << port_name << "@" << name_;
   return OK;
 }
 
@@ -813,7 +834,7 @@ void Node::ErasePort(const PortName& port_name) {
     SinglePortLocker locker(&port_ref);
     locker.port()->message_queue.TakeAllMessages(&messages);
   }
-  DVLOG(2) << "Deleted port " << port_name << "@" << name_;
+  // LOG(INFO) << "Deleted port " << port_name << "@" << name_;
 }
 
 int Node::SendUserMessageInternal(const PortRef& port_ref,
@@ -996,10 +1017,17 @@ void Node::ConvertToProxy(Port* port,
   // Configure the local port to point to the new port.
   port->peer_node_name = to_node_name;
   port->peer_port_name = new_port_name;
+
+  // LOG(INFO) << __FUNCTION__ << "() " << local_port_name << "@" << name_ << " - new:" << new_port_name << "@" << to_node_name;
+  // LOG(INFO) << __FUNCTION__ << "() peer node name     :" << port_descriptor->peer_node_name << ", port:" << port_descriptor->peer_port_name;
+  // LOG(INFO) << __FUNCTION__ << "() referring node name:" << port_descriptor->referring_node_name << ", port:" << port_descriptor->referring_port_name;
 }
 
 int Node::AcceptPort(const PortName& port_name,
                      const Event::PortDescriptor& port_descriptor) {
+  LOG(INFO) << __FUNCTION__ << "() node:" << name_ << ", port:" << port_name;
+  //LOG(INFO) << __FUNCTION__ << "() peer node name     :" << port_descriptor.peer_node_name << ", port:" << port_descriptor.peer_port_name;
+  //LOG(INFO) << __FUNCTION__ << "() referring node name:" << port_descriptor.referring_node_name << ", port:" << port_descriptor.referring_port_name;
   scoped_refptr<Port> port =
       base::MakeRefCounted<Port>(port_descriptor.next_sequence_num_to_send,
                                  port_descriptor.next_sequence_num_to_receive);
@@ -1010,7 +1038,8 @@ int Node::AcceptPort(const PortName& port_name,
       port_descriptor.last_sequence_num_to_receive;
   port->peer_closed = port_descriptor.peer_closed;
 
-  DVLOG(2) << "Accepting port " << port_name
+  LOG(INFO) << "Accepting port " << port_name
+           << ", peer=" << port->peer_port_name << "@" << port->peer_node_name
            << " [peer_closed=" << port->peer_closed
            << "; last_sequence_num_to_receive="
            << port->last_sequence_num_to_receive << "]";
@@ -1088,7 +1117,7 @@ int Node::PrepareToForwardUserMessage(const PortRef& forwarding_port_ref,
     // a proxy. Otherwise, use the next outgoing sequence number.
     if (message->sequence_num() == 0)
       message->set_sequence_num(forwarding_port->next_sequence_num_to_send++);
-#if DCHECK_IS_ON()
+#if 1 //DCHECK_IS_ON()
     std::ostringstream ports_buf;
     for (size_t i = 0; i < message->num_ports(); ++i) {
       if (i > 0)
@@ -1134,8 +1163,9 @@ int Node::PrepareToForwardUserMessage(const PortRef& forwarding_port_ref,
       }
     }
 
-#if DCHECK_IS_ON()
-    DVLOG(4) << "Sending message " << message->sequence_num()
+#if 1 //DCHECK_IS_ON()
+    if(target_node_name != name_ && message->num_ports())
+      LOG(INFO) << __FUNCTION__ << "() Sending message " << message->sequence_num()
              << " [ports=" << ports_buf.str() << "]"
              << " from " << forwarding_port_ref.name() << "@" << name_ << " to "
              << forwarding_port->peer_port_name << "@" << target_node_name;

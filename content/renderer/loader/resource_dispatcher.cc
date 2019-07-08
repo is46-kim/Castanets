@@ -218,7 +218,7 @@ int GetInitialRequestID() {
   // RequestIDs, kMax is set to a relatively low value of 2^20 (rather than
   // to something higher like 2^31).
   const int kMin = 0;
-  const int kMax = 1 << 20;
+  const int kMax = 0;//1 << 20;
   return base::RandInt(kMin, kMax);
 }
 
@@ -427,6 +427,7 @@ void ResourceDispatcher::OnRequestComplete(
       std::move(request_info->redirect_info_chain);
   resource_load_info->total_received_bytes = status.encoded_data_length;
   resource_load_info->raw_body_bytes = status.encoded_body_length;
+  LOG(INFO) << __FUNCTION__ << "()" << request_id << ", url:" << request_info->url.possibly_invalid_spec();
 
   NotifyResourceLoadComplete(RenderThreadImpl::DeprecatedGetMainTaskRunner(),
                              request_info->render_frame_id,
@@ -670,6 +671,11 @@ int ResourceDispatcher::StartAsync(
 
   // Compute a unique request_id for this renderer process.
   int request_id = MakeRequestID();
+  LOG(INFO) << __FUNCTION__ << "() request_id:" << request_id
+                            << ", url:" << request->url.possibly_invalid_spec()
+                            << ", response_override_params:" << !!response_override_params
+                            << ", override_url_loader:" << override_url_loader;
+
   pending_requests_[request_id] = std::make_unique<PendingRequestInfo>(
       std::move(peer), static_cast<ResourceType>(request->resource_type),
       request->render_frame_id, request->url, request->method,
@@ -760,6 +766,7 @@ void ResourceDispatcher::ContinueForNavigation(int request_id) {
   if (!request_info)
     return;
 
+  LOG(INFO) << __FUNCTION__ << "() request_id:" << request_id;
   std::unique_ptr<NavigationResponseOverrideParameters> response_override =
       std::move(request_info->navigation_response_override);
   DCHECK(response_override);

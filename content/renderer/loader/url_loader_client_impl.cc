@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "base/debug/stack_trace.h"
 #include "base/callback.h"
 #include "base/single_thread_task_runner.h"
 #include "content/renderer/loader/resource_dispatcher.h"
@@ -118,7 +119,10 @@ URLLoaderClientImpl::URLLoaderClientImpl(
       resource_dispatcher_(resource_dispatcher),
       task_runner_(std::move(task_runner)),
       url_loader_client_binding_(this),
-      weak_factory_(this) {}
+      weak_factory_(this) {
+  std::string bt = base::debug::StackTrace().ToString();
+  LOG(INFO) << __FUNCTION__ << "() request_id:" << request_id_ << " " << bt;
+}
 
 URLLoaderClientImpl::~URLLoaderClientImpl() {
   if (body_consumer_)
@@ -208,15 +212,19 @@ void URLLoaderClientImpl::FlushDeferredMessages() {
 
 void URLLoaderClientImpl::Bind(
     network::mojom::URLLoaderClientEndpointsPtr endpoints) {
+  std::string bt = base::debug::StackTrace().ToString();
   url_loader_.Bind(std::move(endpoints->url_loader), task_runner_);
   url_loader_client_binding_.Bind(std::move(endpoints->url_loader_client),
                                   task_runner_);
   url_loader_client_binding_.set_connection_error_handler(base::BindOnce(
       &URLLoaderClientImpl::OnConnectionClosed, weak_factory_.GetWeakPtr()));
+  LOG(INFO) << __FUNCTION__ << "()" << request_id_ << ", Binding<URLLoaderClient>" << url_loader_client_binding_.handle().value() << ", URLLoaderPtr:" << url_loader_.internal_state()->handle().value();
+  LOG(INFO) << __FUNCTION__ << "()" << request_id_ << " " << bt;
 }
 
 void URLLoaderClientImpl::OnReceiveResponse(
     const network::ResourceResponseHead& response_head) {
+  LOG(INFO) << __FUNCTION__ << "()" << request_id_;
   has_received_response_ = true;
   if (NeedsStoringMessage()) {
     StoreAndDispatch(
@@ -274,6 +282,8 @@ void URLLoaderClientImpl::OnTransferSizeUpdated(int32_t transfer_size_diff) {
 
 void URLLoaderClientImpl::OnStartLoadingResponseBody(
     mojo::ScopedDataPipeConsumerHandle body) {
+  LOG(INFO) << __FUNCTION__ << ">>>>>>>>>> id:" << request_id_ << ", body:" << body->value() << ", valid:" << body->is_valid() << ", is_deferred_:" << is_deferred_ << ", pipe?" << pass_response_pipe_to_dispatcher_;
+  // LOG(INFO) << __FUNCTION__ << "()" << base::debug::StackTrace().ToString();
   DCHECK(!body_consumer_);
   DCHECK(has_received_response_);
 
@@ -282,6 +292,7 @@ void URLLoaderClientImpl::OnStartLoadingResponseBody(
                                                      std::move(body));
     return;
   }
+
 
   body_consumer_ = new URLResponseBodyConsumer(
       request_id_, resource_dispatcher_, std::move(body), task_runner_);
@@ -296,6 +307,7 @@ void URLLoaderClientImpl::OnStartLoadingResponseBody(
 
 void URLLoaderClientImpl::OnComplete(
     const network::URLLoaderCompletionStatus& status) {
+  LOG(INFO) << __FUNCTION__ << "() id:" << request_id_;
   has_received_complete_ = true;
   if (!body_consumer_) {
     if (NeedsStoringMessage()) {

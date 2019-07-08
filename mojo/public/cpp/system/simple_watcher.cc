@@ -5,6 +5,7 @@
 #include "mojo/public/cpp/system/simple_watcher.h"
 
 #include "base/bind.h"
+#include "base/debug/stack_trace.h"
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/sequenced_task_runner.h"
@@ -168,6 +169,8 @@ MojoResult SimpleWatcher::Watch(Handle handle,
     return result;
   }
 
+  // LOG(INFO) << __FUNCTION__ << "() watch_id:" << watch_id_ << ", handle:" << handle_.value();
+  // LOG(INFO) << __FUNCTION__ << "() " << base::debug::StackTrace().ToString();
   if (arming_policy_ == ArmingPolicy::AUTOMATIC)
     ArmOrNotify();
 

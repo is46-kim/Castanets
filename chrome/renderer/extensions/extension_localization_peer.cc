@@ -83,6 +83,7 @@ void ExtensionLocalizationPeer::OnReceivedResponse(
 
 void ExtensionLocalizationPeer::OnStartLoadingResponseBody(
     mojo::ScopedDataPipeConsumerHandle body) {
+  LOG(INFO) << __FUNCTION__ << "() ********************************************************************************************************************************";
   original_peer_->OnStartLoadingResponseBody(std::move(body));
 }
 

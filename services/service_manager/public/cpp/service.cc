@@ -45,6 +45,7 @@ void ForwardingService::OnBindInterface(
     const BindSourceInfo& source,
     const std::string& interface_name,
     mojo::ScopedMessagePipeHandle interface_pipe) {
+  LOG(INFO) << __FUNCTION__ << "() IF:" << interface_name << ", pipe handle:" << interface_pipe->value();
   target_->OnBindInterface(source, interface_name, std::move(interface_pipe));
 }
 

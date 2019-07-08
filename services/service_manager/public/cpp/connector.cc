@@ -80,6 +80,7 @@ void Connector::BindInterface(const Identity& target,
   if (!BindConnectorIfNecessary())
     return;
 
+  LOG(INFO) << __FUNCTION__ << "() Target:" << target.name() << ", IF:" << interface_name << ", " << interface_pipe->value();
   connector_->BindInterface(target, interface_name, std::move(interface_pipe),
                             base::Bind(&Connector::RunStartServiceCallback,
                                        weak_factory_.GetWeakPtr()));

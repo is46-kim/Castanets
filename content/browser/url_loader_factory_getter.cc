@@ -74,6 +74,7 @@ class URLLoaderFactoryGetter::URLLoaderFactoryForIOThread
     DCHECK(BrowserThread::CurrentlyOn(BrowserThread::IO));
     if (!factory_getter_)
       return;
+    LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", this:" << this << ", url:" << url_request.url.possibly_invalid_spec();
     factory_getter_->GetURLLoaderFactory()->CreateLoaderAndStart(
         std::move(request), routing_id, request_id, options, url_request,
         std::move(client), traffic_annotation);
@@ -120,6 +121,7 @@ void URLLoaderFactoryGetter::Initialize(StoragePartitionImpl* partition) {
   partition_ = partition;
   network::mojom::URLLoaderFactoryPtr network_factory;
   pending_network_factory_request_ = MakeRequest(&network_factory);
+  LOG(INFO) << __FUNCTION__ << "() URLLoaderFactoryPtr:" << network_factory.internal_state()->handle().value();
 
   // If NetworkService is disabled, HandleFactoryRequests should be called after
   // NetworkContext in |partition_| is ready.

@@ -12,6 +12,7 @@
 #include "base/containers/hash_tables.h"
 #include "base/containers/queue.h"
 #include "base/debug/alias.h"
+#include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
@@ -852,6 +853,7 @@ void RenderFrameHostImpl::CreateNetworkServiceDefaultFactory(
     network::mojom::URLLoaderFactoryPtr original_factory;
     storage_partition->GetNetworkContext()->CreateURLLoaderFactory(
         mojo::MakeRequest(&original_factory), std::move(params));
+    LOG(INFO) << __FUNCTION__ << "() URLLoaderFactoryPtr:" << original_factory.internal_state()->handle().value();
     g_create_network_factory_callback_for_test.Get().Run(
         std::move(default_factory_request), GetProcess()->GetID(),
         original_factory.PassInterface());
@@ -3975,6 +3977,7 @@ void RenderFrameHostImpl::CommitNavigation(
       // appropriate NetworkContext.
       CreateNetworkServiceDefaultFactoryAndObserve(
           mojo::MakeRequest(&default_factory_info));
+      LOG(INFO) << __FUNCTION__ << "() URLLoaderFactoryPtrInfo:" << default_factory_info.handle()->value();
     }
 
     DCHECK(default_factory_info);
@@ -4086,14 +4089,19 @@ void RenderFrameHostImpl::CommitNavigation(
                                      ? find_request->second.get()
                                      : nullptr;
 
+    LOG(INFO) << __FUNCTION__ << "() ++++++++++++++" << " navigation_id:" << navigation_id;
+    LOG(INFO) << __FUNCTION__ << "() URLLoaderFactoryPtr:" << prefetch_loader_factory.internal_state()->handle().value();
+    LOG(INFO) << __FUNCTION__ << "() URLLoaderPtr:" << url_loader_client_endpoints->url_loader.handle()->value();
     if (IsPerNavigationMojoInterfaceEnabled() && navigation_request_ &&
         navigation_request_->GetCommitNavigationClient()) {
+      LOG(INFO) << __FUNCTION__ << "() > navigation_id:" << navigation_id << ", url:" << common_params.url.possibly_invalid_spec();
       navigation_request_->GetCommitNavigationClient()->CommitNavigation(
           head, common_params, request_params,
           std::move(url_loader_client_endpoints), CloneSubresourceFactories(),
           std::move(subresource_overrides), std::move(controller),
           std::move(prefetch_loader_factory), devtools_navigation_token);
     } else {
+      LOG(INFO) << __FUNCTION__ << "() > navigation_id:" << navigation_id << ", url:" << common_params.url.possibly_invalid_spec();
       GetNavigationControl()->CommitNavigation(
           head, common_params, request_params,
           std::move(url_loader_client_endpoints), CloneSubresourceFactories(),
@@ -4105,6 +4113,8 @@ void RenderFrameHostImpl::CommitNavigation(
                   : content::mojom::FrameNavigationControl::
                         CommitNavigationCallback());
     }
+    LOG(INFO) << __FUNCTION__ << "()" << base::debug::StackTrace().ToString();
+    LOG(INFO) << __FUNCTION__ << "() ---------- " << " navigation_id:" << navigation_id;
 
     // |remote_object| is an associated interface ptr, so calls can't be made on
     // it until its request endpoint is sent. Now that the request endpoint was
@@ -4150,6 +4160,7 @@ void RenderFrameHostImpl::FailedNavigation(
     network::mojom::URLLoaderFactoryPtrInfo default_factory_info;
     CreateNetworkServiceDefaultFactoryAndObserve(
         mojo::MakeRequest(&default_factory_info));
+    LOG(INFO) << __FUNCTION__ << "() URLLoaderFactoryPtrInfo:" << default_factory_info.handle()->value();
     subresource_loader_factories = std::make_unique<URLLoaderFactoryBundleInfo>(
         std::move(default_factory_info),
         std::map<std::string, network::mojom::URLLoaderFactoryPtrInfo>());
@@ -4213,6 +4224,7 @@ void RenderFrameHostImpl::SetUpMojoIfNeeded() {
   mojom::FrameFactoryPtr frame_factory;
   BindInterface(GetProcess(), &frame_factory);
   frame_factory->CreateFrame(routing_id_, MakeRequest(&frame_));
+  LOG(INFO) << __FUNCTION__ << "() FramePtr:" << frame_.internal_state()->handle().value();
 
   service_manager::mojom::InterfaceProviderPtr remote_interfaces;
   frame_->GetInterfaceProvider(mojo::MakeRequest(&remote_interfaces));
@@ -5009,6 +5021,7 @@ void RenderFrameHostImpl::GetInterface(
   if (!registry_ ||
       !registry_->TryBindInterface(interface_name, &interface_pipe)) {
     delegate_->OnInterfaceRequest(this, interface_name, &interface_pipe);
+    LOG(INFO) << __FUNCTION__ << "()" << interface_name << ", " << interface_pipe->value();
     if (interface_pipe.is_valid() &&
         !TryBindFrameInterface(interface_name, &interface_pipe, this)) {
       GetContentClient()->browser()->BindInterfaceRequestFromFrame(

@@ -329,6 +329,7 @@ void MojoAsyncResourceHandler::OnReadCompleted(
   }
 
   if (response_body_consumer_handle_.is_valid()) {
+    LOG(INFO) << __FUNCTION__ << "() call OnStartLoadingResponseBody()";
     // Send the data pipe on the first OnReadCompleted call.
     url_loader_client_->OnStartLoadingResponseBody(
         std::move(response_body_consumer_handle_));

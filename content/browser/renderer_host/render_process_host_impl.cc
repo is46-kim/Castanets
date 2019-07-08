@@ -2380,6 +2380,7 @@ void RenderProcessHostImpl::CreateURLLoaderFactory(
                        std::move(request)));
     return;
   }
+  LOG(INFO) << __FUNCTION__ << "()";
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
   params->process_id = id_;

@@ -72,7 +72,7 @@ void URLLoaderFactoryBundle::CreateLoaderAndStart(
     network::mojom::URLLoaderClientPtr client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   network::mojom::URLLoaderFactory* factory_ptr = GetFactoryForURL(request.url);
-
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", url:" << request.url.possibly_invalid_spec();
   factory_ptr->CreateLoaderAndStart(std::move(loader), routing_id, request_id,
                                     options, request, std::move(client),
                                     traffic_annotation);

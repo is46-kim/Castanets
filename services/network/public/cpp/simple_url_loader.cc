@@ -1280,6 +1280,7 @@ void SimpleURLLoaderImpl::StartRequest(
     resource_request_->request_body->AppendDataPipe(
         string_upload_data_pipe_getter_->GetPtrForNewUpload());
   }
+  LOG(INFO) << __FUNCTION__ << "()" << 0 << ", resource_request:" << 0 << ", " << resource_request_->url.possibly_invalid_spec();
   url_loader_factory->CreateLoaderAndStart(
       mojo::MakeRequest(&url_loader_), 0 /* routing_id */, 0 /* request_id */,
       0 /* options */, *resource_request_, std::move(client_ptr),

@@ -407,6 +407,7 @@ void CORSURLLoader::StartNetworkRequest(
   // |network_client_binding_| shares this object's lifetime.
   network_client_binding_.set_connection_error_handler(base::BindOnce(
       &CORSURLLoader::OnConnectionError, base::Unretained(this)));
+  LOG(INFO) << __FUNCTION__ << "()" << routing_id_ << ", resource_request:" << request_id_ << ", " << request_.url.possibly_invalid_spec();
   network_loader_factory_->CreateLoaderAndStart(
       mojo::MakeRequest(&network_loader_), routing_id_, request_id_, options_,
       request_, std::move(network_client), traffic_annotation_);

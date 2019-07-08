@@ -251,6 +251,7 @@ class SubresourceLoader : public network::mojom::URLLoader,
 
   void OnStartLoadingResponseBody(
       mojo::ScopedDataPipeConsumerHandle body) override {
+    LOG(INFO) << __FUNCTION__ << "() ********************************************************************************************************************************";
     remote_client_->OnStartLoadingResponseBody(std::move(body));
   }
 

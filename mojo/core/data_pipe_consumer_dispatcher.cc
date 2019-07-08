@@ -11,6 +11,7 @@
 #include <limits>
 #include <utility>
 
+#include "base/debug/stack_trace.h"
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -388,7 +389,9 @@ DataPipeConsumerDispatcher::Deserialize(const void* data,
 
 #if defined(CASTANETS)
   base::subtle::PlatformSharedMemoryRegion::ScopedPlatformHandle region_handle;
+  LOG(INFO) << __FUNCTION__ << "() pipe id:" << state->pipe_id << ", cap:" << state->options.capacity_num_bytes << ", port:" << *ports << ", ports:" << num_ports << ", fd:" << handles[0].GetFD().get();
   if (handles[0].GetFD().get() < 0) {
+    // LOG(INFO) << __FUNCTION__ << "() " << base::debug::StackTrace().ToString();
     base::SharedMemoryCreateOptions options;
     options.size = static_cast<size_t>(state->options.capacity_num_bytes);
     auto new_region = base::CreateAnonymousSharedMemoryIfNeeded(
@@ -451,7 +454,9 @@ DataPipeConsumerDispatcher::DataPipeConsumerDispatcher(
       control_port_(control_port),
       pipe_id_(pipe_id),
       watchers_(this),
-      shared_ring_buffer_(std::move(shared_ring_buffer)) {}
+      shared_ring_buffer_(std::move(shared_ring_buffer)) {
+  LOG(INFO) << __FUNCTION__ << "() pipe_id :" << pipe_id << ", port:" << control_port_.name();
+}
 
 DataPipeConsumerDispatcher::~DataPipeConsumerDispatcher() {
   DCHECK(is_closed_ && !shared_ring_buffer_.IsValid() &&

@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
@@ -56,7 +57,7 @@ class MessagePipeDispatcher::PortObserverThunk
   DISALLOW_COPY_AND_ASSIGN(PortObserverThunk);
 };
 
-#if DCHECK_IS_ON()
+#if 1 //DCHECK_IS_ON()
 
 // A MessageFilter which never matches a message. Used to peek at the size of
 // the next available message on a port, for debug logging only.
@@ -92,9 +93,10 @@ MessagePipeDispatcher::MessagePipeDispatcher(NodeController* node_controller,
       pipe_id_(pipe_id),
       endpoint_(endpoint),
       watchers_(this) {
-  DVLOG(2) << "Creating new MessagePipeDispatcher for port " << port.name()
-           << " [pipe_id=" << pipe_id << "; endpoint=" << endpoint << "]";
-
+  // DVLOG(2)
+  LOG(INFO) << "Creating new MessagePipeDispatcher for port " << port.name()
+           << " [pipe_id=" << pipe_id << "; endpoint=" << endpoint << "]" << ", this:" << this;
+  // LOG(INFO) << __FUNCTION__ << "()" << base::debug::StackTrace().ToString();;
   node_controller_->SetPortObserver(
       port_, base::MakeRefCounted<PortObserverThunk>(this));
 }

@@ -215,6 +215,7 @@ class SystemNetworkContextManager::URLLoaderFactoryForSystem
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     if (!manager_)
       return;
+    LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", url:" << url_request.url.possibly_invalid_spec();
     manager_->GetURLLoaderFactory()->CreateLoaderAndStart(
         std::move(request), routing_id, request_id, options, url_request,
         std::move(client), traffic_annotation);
@@ -267,6 +268,7 @@ network::mojom::NetworkContext* SystemNetworkContextManager::GetContext() {
 
 network::mojom::URLLoaderFactory*
 SystemNetworkContextManager::GetURLLoaderFactory() {
+  LOG(INFO) << __FUNCTION__ << "()";
   // Create the URLLoaderFactory as needed.
   if (url_loader_factory_ && !url_loader_factory_.encountered_error()) {
     return url_loader_factory_.get();

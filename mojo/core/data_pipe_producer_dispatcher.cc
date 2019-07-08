@@ -419,7 +419,9 @@ DataPipeProducerDispatcher::DataPipeProducerDispatcher(
       pipe_id_(pipe_id),
       watchers_(this),
       shared_ring_buffer_(std::move(shared_ring_buffer)),
-      available_capacity_(options_.capacity_num_bytes) {}
+      available_capacity_(options_.capacity_num_bytes) {
+  LOG(INFO) << __FUNCTION__ << "() pipe_id :" << pipe_id << ", port:" << control_port_.name();
+}
 
 DataPipeProducerDispatcher::~DataPipeProducerDispatcher() {
   DCHECK(is_closed_ && !in_transit_ && !shared_ring_buffer_.IsValid() &&
@@ -518,7 +520,7 @@ void DataPipeProducerDispatcher::UpdateSignalsStateNoLock() {
   int rv = node_controller_->node()->GetStatus(control_port_, &port_status);
   peer_remote_ = rv == ports::OK && port_status.peer_remote;
   if (rv != ports::OK || !port_status.receiving_messages) {
-    DVLOG(1) << "Data pipe producer " << pipe_id_ << " is aware of peer closure"
+    LOG(INFO) << "Data pipe producer " << pipe_id_ << " is aware of peer closure"
              << " [control_port=" << control_port_.name() << "]";
     peer_closed_ = true;
   } else if (rv == ports::OK && port_status.has_messages && !in_transit_) {
@@ -550,7 +552,7 @@ void DataPipeProducerDispatcher::UpdateSignalsStateNoLock() {
           break;
         }
 
-        DVLOG(1) << "Data pipe producer " << pipe_id_ << " is aware that "
+        LOG(INFO) << "Data pipe producer " << pipe_id_ << " is aware that "
                  << m->num_bytes
                  << " bytes were read. [control_port=" << control_port_.name()
                  << "]";

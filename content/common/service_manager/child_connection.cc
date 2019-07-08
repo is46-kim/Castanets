@@ -41,6 +41,7 @@ class ChildConnection::IOThreadContext
 
   void BindInterface(const std::string& interface_name,
                      mojo::ScopedMessagePipeHandle interface_pipe) {
+    LOG(INFO) << __FUNCTION__ << "() IF:" << interface_name << ", " << interface_pipe->value();
     io_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&IOThreadContext::BindInterfaceOnIOThread, this,

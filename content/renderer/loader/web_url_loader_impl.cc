@@ -888,6 +888,7 @@ void WebURLLoaderImpl::Context::OnReceivedResponse(
 
 void WebURLLoaderImpl::Context::OnStartLoadingResponseBody(
     mojo::ScopedDataPipeConsumerHandle body) {
+  LOG(INFO) << __FUNCTION__ << "() ********************************************************************************************************************************";
   if (client_)
     client_->DidStartLoadingResponseBody(std::move(body));
 }
@@ -1100,6 +1101,7 @@ void WebURLLoaderImpl::RequestPeerImpl::OnReceivedResponse(
 
 void WebURLLoaderImpl::RequestPeerImpl::OnStartLoadingResponseBody(
     mojo::ScopedDataPipeConsumerHandle body) {
+  LOG(INFO) << __FUNCTION__ << "() ********************************************************************************************************************************";
   context_->OnStartLoadingResponseBody(std::move(body));
 }
 

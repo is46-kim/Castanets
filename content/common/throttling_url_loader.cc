@@ -4,6 +4,7 @@
 
 #include "content/common/throttling_url_loader.h"
 
+#include "base/debug/stack_trace.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "content/public/common/browser_side_navigation_policy.h"
@@ -155,6 +156,8 @@ std::unique_ptr<ThrottlingURLLoader> ThrottlingURLLoader::CreateLoaderAndStart(
     network::mojom::URLLoaderClient* client,
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+  std::string bt = base::debug::StackTrace().ToString();
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", url:" << url_request->url.possibly_invalid_spec() << "\n" << bt;
   std::unique_ptr<ThrottlingURLLoader> loader(new ThrottlingURLLoader(
       std::move(throttles), client, traffic_annotation));
   loader->Start(std::move(factory), routing_id, request_id, options,
@@ -266,16 +269,21 @@ void ThrottlingURLLoader::StartNow(
     uint32_t options,
     network::ResourceRequest* url_request,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+  LOG(INFO) << __FUNCTION__ << "() +++++";
+
   network::mojom::URLLoaderClientPtr client;
   client_binding_.Bind(mojo::MakeRequest(&client), std::move(task_runner));
   client_binding_.set_connection_error_handler(base::BindOnce(
       &ThrottlingURLLoader::OnClientConnectionError, base::Unretained(this)));
 
   DCHECK(factory);
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", this:" << this << ", url:" << url_request->url.possibly_invalid_spec();
+  LOG(INFO) << __FUNCTION__ << "() URLLoaderClientPtr:" << client.internal_state()->handle().value() << ", Binding:" << client_binding_.internal_state()->handle().value();
   factory->CreateLoaderAndStart(
       mojo::MakeRequest(&url_loader_), routing_id, request_id, options,
       *url_request, std::move(client),
       net::MutableNetworkTrafficAnnotationTag(traffic_annotation_));
+  LOG(INFO) << __FUNCTION__ << "() ----- URLLoaderPtr:" << url_loader_.internal_state()->handle().value();
 
   if (!pausing_reading_body_from_net_throttles_.empty())
     url_loader_->PauseReadingBodyFromNet();
@@ -317,6 +325,8 @@ void ThrottlingURLLoader::OnReceiveResponse(
   DCHECK_EQ(DEFERRED_NONE, deferred_stage_);
   DCHECK(!loader_cancelled_);
   DCHECK(deferring_throttles_.empty());
+
+  LOG(INFO) << __FUNCTION__ << "() this:" << this << ", url:" << response_url_.possibly_invalid_spec();
 
   if (!throttles_.empty()) {
     bool deferred = false;

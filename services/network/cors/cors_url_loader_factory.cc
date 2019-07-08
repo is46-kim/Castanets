@@ -68,6 +68,7 @@ void CORSURLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& resource_request,
     mojom::URLLoaderClientPtr client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", request_id:" << request_id << ", " << resource_request.url.possibly_invalid_spec();
   if (!IsSane(resource_request)) {
     client->OnComplete(URLLoaderCompletionStatus(net::ERR_INVALID_ARGUMENT));
     return;

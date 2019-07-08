@@ -140,6 +140,7 @@ void AppCacheUpdateJob::UpdateURLLoaderRequest::OnTransferSizeUpdated(
 
 void AppCacheUpdateJob::UpdateURLLoaderRequest::OnStartLoadingResponseBody(
     mojo::ScopedDataPipeConsumerHandle body) {
+  LOG(INFO) << __FUNCTION__ << "() ********************************************************************************************************************************";
   handle_ = std::move(body);
 
   handle_watcher_.Watch(

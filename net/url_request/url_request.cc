@@ -597,6 +597,7 @@ URLRequest::URLRequest(const GURL& url,
   // Sanity check out environment.
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
 
+  LOG(INFO) << __FUNCTION__ << "() " << identifier_ << ", url:" << url.possibly_invalid_spec();
   context->url_requests()->insert(this);
   net_log_.BeginEvent(
       NetLogEventType::REQUEST_ALIVE,

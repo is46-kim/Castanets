@@ -3082,6 +3082,7 @@ void RenderFrameImpl::CommitNavigation(
     return;
   }
 
+  LOG(INFO) << __FUNCTION__ << "() URLLoaderPtrInfo:" << url_loader_client_endpoints->url_loader.handle()->value();
   controller_service_worker_info_ = std::move(controller_service_worker_info);
   prefetch_loader_factory_ = std::move(prefetch_loader_factory);
 
@@ -6783,6 +6784,7 @@ std::unique_ptr<base::DictionaryValue> GetDevToolsInitiator(
 void RenderFrameImpl::BeginNavigation(const NavigationPolicyInfo& info) {
   browser_side_navigation_pending_ = true;
   browser_side_navigation_pending_url_ = info.url_request.Url();
+  LOG(INFO) << __FUNCTION__ << "()" << browser_side_navigation_pending_url_.possibly_invalid_spec();
 
   blink::WebURLRequest& request = info.url_request;
 

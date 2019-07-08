@@ -688,6 +688,7 @@ StoragePartitionImpl::GetMediaURLRequestContext() {
 
 network::mojom::NetworkContext* StoragePartitionImpl::GetNetworkContext() {
   if (!network_context_.is_bound() || network_context_.encountered_error()) {
+    LOG(INFO) << __FUNCTION__ << "()";
     network_context_ = GetContentClient()->browser()->CreateNetworkContext(
         browser_context_, is_in_memory_, relative_partition_path_);
     if (!network_context_) {

@@ -79,6 +79,7 @@ bool HandleTable::AddDispatchersFromTransit(
       handle = next_available_handle_++;
       auto result = handles_.insert(
           std::make_pair(handle, Entry(dispatchers[i].dispatcher)));
+      LOG(INFO) << __FUNCTION__ << "() " << handle << " : " << dispatchers[i].dispatcher;
       DCHECK(result.second);
     }
     handles[i] = handle;

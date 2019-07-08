@@ -785,6 +785,7 @@ void RenderThreadImpl::Init(
                              : ui::mojom::kServiceName,
                          GetIOTaskRunner());
 
+  LOG(INFO) << __FUNCTION__ << "() new ResourceDispatcher()";
   resource_dispatcher_.reset(new ResourceDispatcher());
   url_loader_throttle_provider_ =
       GetContentClient()->renderer()->CreateURLLoaderThrottleProvider(

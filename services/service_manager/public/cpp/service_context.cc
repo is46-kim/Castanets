@@ -145,6 +145,7 @@ void ServiceContext::OnBindInterface(
     // Just use the binder overridden globally.
     return;
   }
+  LOG(INFO) << __FUNCTION__ << "()" << interface_name << ", " << interface_pipe->value();
   service_->OnBindInterface(source_info, interface_name,
                             std::move(interface_pipe));
 }

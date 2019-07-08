@@ -116,6 +116,7 @@ void CrossThreadSharedURLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& request,
     mojom::URLLoaderClientPtr client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << __FUNCTION__ << "() routing_id:" << routing_id << ", id:" << request_id << ", this:" << this << ", url:" << request.url.possibly_invalid_spec();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::SequencedTaskRunner* runner = state_->task_runner();
   if (runner->RunsTasksInCurrentSequence()) {
