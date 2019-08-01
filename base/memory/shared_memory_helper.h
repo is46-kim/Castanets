@@ -45,6 +45,13 @@ bool CreateAnonymousSharedMemory(const SharedMemoryCreateOptions& options,
 subtle::PlatformSharedMemoryRegion BASE_EXPORT
 CreateAnonymousSharedMemoryIfNeeded(const UnguessableToken& guid,
                                     const SharedMemoryCreateOptions& option);
+
+bool BASE_EXPORT CreateNamedSharedMemory(const std::string& name,
+                                         size_t size,
+                                         ScopedFD* fd,
+                                         ScopedFD* readonly_fd,
+                                         FilePath* path,
+                                         bool open_only = false);
 #endif // defined(CASTANETS)
 
 }  // namespace base

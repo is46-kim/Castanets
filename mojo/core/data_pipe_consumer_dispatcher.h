@@ -119,6 +119,10 @@ class MOJO_SYSTEM_IMPL_EXPORT DataPipeConsumerDispatcher final
   // Indicates whether any new data is available since the last read attempt.
   bool new_data_available_ = false;
 
+#if defined(CASTANETS)
+  base::FilePath shm_file_;
+#endif
+
   DISALLOW_COPY_AND_ASSIGN(DataPipeConsumerDispatcher);
 };
 

@@ -229,6 +229,78 @@ subtle::PlatformSharedMemoryRegion CreateAnonymousSharedMemoryIfNeeded(
   SharedMemoryTracker::GetInstance()->AddHolder(region.Duplicate());
   return region;
 }
+
+bool CreateNamedSharedMemory(const std::string& name,
+                             size_t size,
+                             ScopedFD* fd,
+                             ScopedFD* readonly_fd,
+                             FilePath* path,
+                             bool open_only) {
+  FilePath file_path;
+  if (!GetShmemTempDir(false, &file_path))
+    return false;
+  file_path = file_path.Append(name);
+  if (path)
+    *path = file_path;
+
+  if (fd) {
+    // create new file
+    if (!open_only) {
+      const mode_t kOwnerOnly = S_IRUSR | S_IWUSR;
+      fd->reset(HANDLE_EINTR(open(file_path.value().c_str(),
+                                  O_RDWR | O_CREAT | O_EXCL, kOwnerOnly)));
+    }
+
+    // If this doesn't work, try and open an existing file in append mode.
+    // Opening an existing file in a world writable directory has two main
+    // security implications:
+    // - Attackers could plant a file under their control, so ownership of
+    //   the file is checked below.
+    // - Attackers could plant a symbolic link so that an unexpected file
+    //   is opened, so O_NOFOLLOW is passed to open().
+    if (!fd->is_valid()) {
+#if !defined(OS_AIX)
+      fd->reset(HANDLE_EINTR(
+          open(file_path.value().c_str(), O_RDWR | O_APPEND | O_NOFOLLOW)));
+#else
+      // AIX has no 64-bit support for open flags such as -
+      //  O_CLOEXEC, O_NOFOLLOW and O_TTY_INIT.
+      fd->reset(
+          HANDLE_EINTR(open(file_path.value().c_str(), O_RDWR | O_APPEND)));
+#endif
+      // Check that the current user owns the file.
+      // If uid != euid, then a more complex permission model is used and this
+      // API is not appropriate.
+      const uid_t real_uid = getuid();
+      const uid_t effective_uid = geteuid();
+      struct stat sb;
+      if (fd->is_valid() &&
+          (fstat(fd->get(), &sb) != 0 || sb.st_uid != real_uid ||
+           sb.st_uid != effective_uid)) {
+        LOG(ERROR) << "Invalid owner when opening existing shared memory file.";
+        close(fd->get());
+        return false;
+      }
+    }
+
+    if (!fd->is_valid())
+      return false;
+
+    struct stat stat;
+    CHECK(!fstat(fd->get(), &stat));
+    const size_t current_size = stat.st_size;
+    if (current_size != size)
+      CHECK(!HANDLE_EINTR(ftruncate(fd->get(), size)));
+  }
+
+  if (readonly_fd) {
+    readonly_fd->reset(HANDLE_EINTR(open(file_path.value().c_str(), O_RDONLY)));
+    if (!readonly_fd->is_valid())
+      PLOG(ERROR) << "open(\"" << file_path.value() << "\", O_RDONLY) failed";
+  }
+
+  return true;
+}
 #endif // defined(CASTANETS)
 
 }  // namespace base
