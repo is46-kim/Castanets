@@ -21,6 +21,10 @@ typedef uint32_t MojoCreateDataPipeFlags;
 
 // No flags. Default behavior.
 #define MOJO_CREATE_DATA_PIPE_FLAG_NONE ((uint32_t)0)
+#if defined(CASTANETS)
+// Use NamedSharedMemory with GUID
+#define MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM ((uint32_t)1)
+#endif
 
 // Options passed to |MojoCreateDataPipe()|.
 struct MOJO_ALIGNAS(8) MojoCreateDataPipeOptions {
