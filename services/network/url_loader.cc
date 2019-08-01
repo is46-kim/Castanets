@@ -660,7 +660,21 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
     raw_response_headers_ = nullptr;
   }
 
+#if defined(CASTANETS)
+  MojoCreateDataPipeOptions options;
+  options.struct_size = sizeof(MojoCreateDataPipeOptions);
+  options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
+  options.element_num_bytes = 1;
+  options.capacity_num_bytes = kDefaultAllocationSize;
+  // TODO : |MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM| should be applied only for
+  // remote peer connected by TCP on same device.
+  if (base::FeatureList::IsEnabled(features::kNetworkService))
+    options.flags |= MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM;
+
+  mojo::DataPipe data_pipe(options);
+#else
   mojo::DataPipe data_pipe(kDefaultAllocationSize);
+#endif
   response_body_stream_ = std::move(data_pipe.producer_handle);
   consumer_handle_ = std::move(data_pipe.consumer_handle);
   peer_closed_handle_watcher_.Watch(

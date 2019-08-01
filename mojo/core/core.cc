@@ -43,7 +43,9 @@
 #include "mojo/core/watcher_dispatcher.h"
 
 #if defined(CASTANETS)
+#include "base/memory/shared_memory_helper.h"
 #include "base/memory/shared_memory_tracker.h"
+#include "mojo/core/platform_handle_utils.h"
 #endif // defined(CASTANETS)
 
 namespace mojo {
@@ -126,6 +128,21 @@ void RunMojoProcessErrorHandler(ProcessDisconnectHandler* disconnect_handler,
   InvokeProcessErrorCallbackOnTaskRunner(task_runner, handler, context, error,
                                          MOJO_PROCESS_ERROR_FLAG_NONE);
 }
+
+#if defined(CASTANETS)
+struct ScopedPathUnlinkerTraits {
+  static const base::FilePath* InvalidValue() { return nullptr; }
+
+  static void Free(const base::FilePath* path) {
+    if (unlink(path->value().c_str()))
+      PLOG(WARNING) << "unlink";
+  }
+};
+
+// Unlinks the FilePath when the object is destroyed.
+using ScopedPathUnlinker =
+    base::ScopedGeneric<const base::FilePath*, ScopedPathUnlinkerTraits>;
+#endif
 
 }  // namespace
 
@@ -675,10 +692,42 @@ MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
     return MOJO_RESULT_INVALID_ARGUMENT;
   }
 
+#if defined(CASTANETS)
+  base::subtle::PlatformSharedMemoryRegion ring_buffer_region;
+  ScopedPathUnlinker path_unlinker;
+  if (options && options->flags & MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM) {
+    auto guid = base::UnguessableToken::Create();
+    base::ScopedFD fd;
+    base::ScopedFD readonly_fd;
+    base::FilePath path;
+    if (base::CreateNamedSharedMemory(guid.ToString(),
+                                      create_options.capacity_num_bytes, &fd,
+                                      &readonly_fd, &path)) {
+      // Unlink file when data pipe creation fails.
+      path_unlinker.reset(&path);
+      auto mode =
+          readonly_fd.is_valid()
+              ? base::subtle::PlatformSharedMemoryRegion::Mode::kWritable
+              : base::subtle::PlatformSharedMemoryRegion::Mode::kUnsafe;
+      ring_buffer_region = base::subtle::PlatformSharedMemoryRegion::Take(
+          CreateSharedMemoryRegionHandleFromPlatformHandles(
+              PlatformHandle(std::move(fd)),
+              PlatformHandle(std::move(readonly_fd))),
+          mode, create_options.capacity_num_bytes, guid);
+    }
+  }
+  if (!ring_buffer_region.IsValid()) {
+    ring_buffer_region =
+        base::WritableSharedMemoryRegion::TakeHandleForSerialization(
+            GetNodeController()->CreateSharedBuffer(
+                create_options.capacity_num_bytes));
+  }
+#else
   base::subtle::PlatformSharedMemoryRegion ring_buffer_region =
       base::WritableSharedMemoryRegion::TakeHandleForSerialization(
           GetNodeController()->CreateSharedBuffer(
               create_options.capacity_num_bytes));
+#endif
 
   // NOTE: We demote the writable region to an unsafe region so that the
   // producer handle can be transferred freely. There is no compelling reason
@@ -735,6 +784,10 @@ MojoResult Core::CreateDataPipe(const MojoCreateDataPipeOptions* options,
     return MOJO_RESULT_RESOURCE_EXHAUSTED;
   }
 
+#if defined(CASTANETS)
+  // Keep the shared memory file to share data pipe.
+  ignore_result(path_unlinker.release());
+#endif
   return MOJO_RESULT_OK;
 }
 
