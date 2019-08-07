@@ -387,6 +387,15 @@ HandleSignalsState MessagePipeDispatcher::GetHandleSignalsStateNoLock() const {
   }
   rv.satisfiable_signals |=
       MOJO_HANDLE_SIGNAL_PEER_CLOSED | MOJO_HANDLE_SIGNAL_QUOTA_EXCEEDED;
+
+#if defined(CASTANETS)
+  if (port_status.peer_tcp_socket) {
+    if (rv.satisfiable_signals & MOJO_HANDLE_SIGNAL_PEER_REMOTE)
+      rv.satisfiable_signals |= MOJO_HANDLE_SIGNAL_PEER_TCP_SOCKET;
+    if (rv.satisfied_signals & MOJO_HANDLE_SIGNAL_PEER_REMOTE)
+      rv.satisfied_signals |= MOJO_HANDLE_SIGNAL_PEER_TCP_SOCKET;
+  }
+#endif
   return rv;
 }
 

@@ -113,6 +113,13 @@ class ChannelPosix : public Channel,
     else
       socket_ = connection_params.TakeEndpoint().TakePlatformHandle().TakeFD();
 
+#if defined(CASTANETS)
+    if (server_.is_valid())
+      is_tcp_socket_ = mojo::IsTcpSocket(server_.platform_handle().GetFD());
+    else
+      is_tcp_socket_ = mojo::IsTcpSocket(socket_);
+#endif
+
     CHECK(server_.is_valid() || socket_.is_valid());
   }
 #if defined(CASTANETS)
@@ -145,6 +152,10 @@ class ChannelPosix : public Channel,
           FROM_HERE, base::BindOnce(&ChannelPosix::StartOnIOThread, this));
     }
   }
+
+#if defined(CASTANETS)
+  bool IsTcpSocket() override { return is_tcp_socket_; }
+#endif
 
   void ShutDownImpl() override {
     // Always shut down asynchronously when called through the public interface.
@@ -790,6 +801,10 @@ class ChannelPosix : public Channel,
   base::circular_deque<MessageView> outgoing_messages_;
 
   bool leak_handle_ = false;
+
+#if defined(CASTANETS)
+  bool is_tcp_socket_ = false;
+#endif
 
 #if defined(OS_MACOSX)
   base::Lock fds_to_close_lock_;

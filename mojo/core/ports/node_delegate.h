@@ -29,6 +29,10 @@ class NodeDelegate {
   // to query the latest status of the port. Note, this event could be spurious
   // if another thread is simultaneously modifying the status of the port.
   virtual void PortStatusChanged(const PortRef& port_ref) = 0;
+
+#if defined(CASTANETS)
+  virtual bool IsTcpSocket(const NodeName& node) = 0;
+#endif
 };
 
 }  // namespace ports

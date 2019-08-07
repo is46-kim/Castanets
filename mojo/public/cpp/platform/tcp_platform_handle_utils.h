@@ -31,6 +31,9 @@ COMPONENT_EXPORT(MOJO_CPP_PLATFORM)
 bool TCPServerAcceptConnection(const base::PlatformFile server_socket,
                                base::ScopedFD* accept_socket);
 
+COMPONENT_EXPORT(MOJO_CPP_PLATFORM)
+bool IsTcpSocket(const base::ScopedFD& fd);
+
 }  // namespace mojo
 
 #endif  // MOJO_EDK_EMBEDDER_TCP_PLATFORM_HANDLE_UTILS_H_

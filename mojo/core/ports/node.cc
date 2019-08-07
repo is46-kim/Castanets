@@ -308,6 +308,10 @@ int Node::GetStatus(const PortRef& port_ref, PortStatus* port_status) {
   port_status->queued_message_count =
       port->message_queue.queued_message_count();
   port_status->queued_num_bytes = port->message_queue.queued_num_bytes();
+#if defined(CASTANETS)
+  port_status->peer_tcp_socket = (port_status->peer_remote) &&
+                                 delegate_->IsTcpSocket(port->peer_node_name);
+#endif
   return OK;
 }
 

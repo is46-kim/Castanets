@@ -160,6 +160,12 @@ class NodeChannel : public base::RefCountedThreadSafe<NodeChannel>,
                     bool write_lock);
 #endif
 
+#if defined(CASTANETS)
+  bool IsTcpSocket() const {
+    return (channel_) ? channel_->IsTcpSocket() : false;
+  }
+#endif
+
  private:
   friend class base::RefCountedThreadSafe<NodeChannel>;
 

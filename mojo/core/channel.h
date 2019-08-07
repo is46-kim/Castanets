@@ -301,6 +301,7 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
 
 #if defined(CASTANETS)
   virtual void WriteNoLockImmediately(MessagePtr message) {};
+  virtual bool IsTcpSocket();
 #endif
 
  protected:

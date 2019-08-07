@@ -168,4 +168,14 @@ bool TCPServerAcceptConnection(const base::PlatformFile server_socket,
 #endif  // defined(OS_NACL)
 }
 
+COMPONENT_EXPORT(MOJO_CPP_PLATFORM)
+bool IsTcpSocket(const base::ScopedFD& fd) {
+  struct sockaddr_storage addr;
+  socklen_t len = sizeof(addr);
+  if (!getsockname(fd.get(), (struct sockaddr*)&addr, &len)) {
+    return (addr.ss_family == AF_INET);
+  }
+  return false;
+}
+
 }  // namespace mojo

@@ -609,6 +609,12 @@ void Channel::ShutDown() {
   delegate_ = nullptr;
 }
 
+#if defined(CASTANETS)
+bool Channel::IsTcpSocket() {
+  return false;
+}
+#endif
+
 char* Channel::GetReadBuffer(size_t* buffer_capacity) {
   DCHECK(read_buffer_);
   size_t required_capacity = *buffer_capacity;

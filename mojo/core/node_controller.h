@@ -223,6 +223,9 @@ class MOJO_SYSTEM_IMPL_EXPORT NodeController : public ports::NodeDelegate,
                     ports::ScopedEvent event) override;
   void BroadcastEvent(ports::ScopedEvent event) override;
   void PortStatusChanged(const ports::PortRef& port) override;
+#if defined(CASTANETS)
+  bool IsTcpSocket(const ports::NodeName& node) override;
+#endif
 
   // NodeChannel::Delegate:
   void OnAcceptInvitee(const ports::NodeName& from_node,

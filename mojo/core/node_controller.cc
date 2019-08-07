@@ -942,6 +942,15 @@ void NodeController::PortStatusChanged(const ports::PortRef& port) {
   }
 }
 
+#if defined(CASTANETS)
+bool NodeController::IsTcpSocket(const ports::NodeName& node) {
+  scoped_refptr<NodeChannel> peer = GetPeerChannel(node);
+  if (peer && peer->IsTcpSocket())
+    return true;
+  return false;
+}
+#endif
+
 void NodeController::OnAcceptInvitee(const ports::NodeName& from_node,
                                      const ports::NodeName& inviter_name,
                                      const ports::NodeName& token) {
