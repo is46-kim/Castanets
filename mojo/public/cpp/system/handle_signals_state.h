@@ -95,6 +95,12 @@ struct MOJO_CPP_SYSTEM_EXPORT HandleSignalsState final
     return !can_satisfy_any(MOJO_HANDLE_SIGNAL_PEER_REMOTE);
   }
 
+#if defined(CASTANETS)
+  bool peer_tcp_socket() const {
+    return satisfies_any(MOJO_HANDLE_SIGNAL_PEER_TCP_SOCKET);
+  }
+#endif
+
   // (Copy and assignment allowed.)
 };
 

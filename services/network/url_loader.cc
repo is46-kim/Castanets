@@ -666,11 +666,18 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
   options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
   options.element_num_bytes = 1;
   options.capacity_num_bytes = kDefaultAllocationSize;
-  // TODO : |MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM| should be applied only for
-  // remote peer connected by TCP on same device.
-  if (base::FeatureList::IsEnabled(features::kNetworkService))
-    options.flags |= MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM;
-
+  // Mark |MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM| only for remote peer connected
+  // by TCP socket with NetworkService.
+  if (!url_loader_client_.internal_state()
+           ->handle()
+           .QuerySignalsState()
+           .peer_tcp_socket()) {
+    // peer connected with IPC socket.
+    options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NO_SYNC;
+  } else if (base::FeatureList::IsEnabled(features::kNetworkService) &&
+             render_frame_id_ && request_id_) {
+    options.flags = MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM;
+  }
   mojo::DataPipe data_pipe(options);
 #else
   mojo::DataPipe data_pipe(kDefaultAllocationSize);
