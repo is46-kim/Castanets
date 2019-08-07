@@ -24,6 +24,8 @@ typedef uint32_t MojoCreateDataPipeFlags;
 #if defined(CASTANETS)
 // Use NamedSharedMemory with GUID
 #define MOJO_CREATE_DATA_PIPE_FLAG_GUID_SHM ((uint32_t)1)
+// Do not sync shared memory to TCP Connection
+#define MOJO_CREATE_DATA_PIPE_FLAG_NO_SYNC ((uint32_t)2)
 #endif
 
 // Options passed to |MojoCreateDataPipe()|.

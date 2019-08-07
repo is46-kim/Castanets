@@ -41,6 +41,9 @@ struct PortStatus {
   bool receiving_messages;
   bool peer_closed;
   bool peer_remote;
+#if defined(CASTANETS)
+  bool peer_tcp_socket;
+#endif
   size_t queued_message_count;
   size_t queued_num_bytes;
 };

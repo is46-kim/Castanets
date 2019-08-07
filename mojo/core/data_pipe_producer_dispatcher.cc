@@ -239,7 +239,8 @@ MojoResult DataPipeProducerDispatcher::EndWriteData(
         (write_offset_ + num_bytes_written) % options_.capacity_num_bytes;
 
 #if defined(CASTANETS)
-    SyncData(num_bytes_written);
+    if (!(options_.flags & MOJO_CREATE_DATA_PIPE_FLAG_NO_SYNC))
+      SyncData(num_bytes_written);
 #endif
     base::AutoUnlock unlock(lock_);
     NotifyWrite(num_bytes_written);
