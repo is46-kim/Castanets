@@ -158,7 +158,14 @@ class ThreadDestructionObserver
 
 }  // namespace
 
-NodeController::~NodeController() {}
+NodeController::~NodeController() {
+#if defined(CASTANETS)
+  // unlink socket file.
+  for (auto& it : introduction_servers_) {
+    unlink(it.GetServerName().c_str());
+  }
+#endif
+}
 
 NodeController::NodeController(Core* core)
     : core_(core),
@@ -845,6 +852,17 @@ void NodeController::SendPeerEvent(const ports::NodeName& name,
       auto& queue = pending_peer_messages_[name];
       needs_introduction = queue.empty();
       queue.emplace(std::move(event_message));
+#if defined(CASTANETS)
+      if (needs_introduction && broker->IsTcpSocket()) {
+        // Create a server endpoint of NamedPlatformChannel by node name for
+        // introduction.
+        NamedPlatformChannel::Options options;
+        options.server_name =
+            static_cast<const std::stringstream&>(std::stringstream() << name)
+                .str();
+        introduction_servers_.push_back(mojo::NamedPlatformChannel(options));
+      }
+#endif
     } else {
       peer = it->second;
     }
@@ -1275,34 +1293,50 @@ void NodeController::OnIntroduce(const ports::NodeName& from_node,
 
   if (!channel_handle.is_valid()) {
 #if defined(CASTANETS)
-    NamedPlatformChannel::ServerName shmem_name = ".org.castanets.Castanets.shmem.network";
-    std::string process_type_str =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type");
-    if (process_type_str == "utility") {
-      NamedPlatformChannel::Options options;
-      options.server_name = shmem_name;
-      mojo::NamedPlatformChannel named_channel(options);
-      scoped_refptr<NodeChannel> channel = NodeChannel::Create(
-        this,
-        ConnectionParams(named_channel.TakeServerEndpoint()),
-        io_task_runner_, ProcessErrorCallback());
-      DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
-      AddPeer(name, channel, true /* start_channel */);
-    }
-    else {
-      PlatformChannelEndpoint channel_endpoint;
-      for (int nsec = 1; nsec <= 128; nsec <<= 1) {
-        channel_endpoint = NamedPlatformChannel::ConnectToServer(shmem_name);
-        if (channel_endpoint.is_valid())
-          break;
-        if (nsec <= 128 / 2)
-          sleep(nsec);
+    PlatformChannelServerEndpoint server;
+    std::string node_name(
+        static_cast<const std::stringstream&>(std::stringstream() << name)
+            .str());
+    // Take the server endpoint created when the node is first introduced.
+    for (auto it = introduction_servers_.begin();
+         it != introduction_servers_.end(); it++) {
+      if (it->GetServerName() == node_name) {
+        server = it->TakeServerEndpoint();
+        break;
       }
-      scoped_refptr<NodeChannel> channel =
-          NodeChannel::Create(this, ConnectionParams(std::move(channel_endpoint)),
-                              io_task_runner_, ProcessErrorCallback());
+    }
+
+    scoped_refptr<NodeChannel> channel;
+    if (server.is_valid()) {
+      channel = NodeChannel::Create(this, ConnectionParams(std::move(server)),
+                                    io_task_runner_, ProcessErrorCallback());
+    } else {
+      // If not exists, attempt to connect by my node name as client.
+      node_name =
+          static_cast<const std::stringstream&>(std::stringstream() << name_)
+              .str();
+      PlatformChannelEndpoint channel_endpoint(
+          NamedPlatformChannel::ConnectToServer(node_name));
+      unlink(node_name.c_str());
+      if (channel_endpoint.is_valid()) {
+        channel = NodeChannel::Create(
+            this, ConnectionParams(std::move(channel_endpoint)),
+            io_task_runner_, ProcessErrorCallback());
+      }
+      // TODO(is46.kim) : Needs a tcp connection attempt as fallback. If the
+      // named platform socket connection attempt fails, it means that the
+      // introduced node is not in the same device.
+    }
+
+    if (channel) {
       DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
       AddPeer(name, channel, true /* start_channel */);
+    } else {
+      node_->LostConnectionToNode(name);
+
+      DVLOG(1) << "Could not be introduced to peer " << name;
+      base::AutoLock lock(peers_lock_);
+      pending_peer_messages_.erase(name);
     }
 #else
     node_->LostConnectionToNode(name);
