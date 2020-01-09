@@ -67,6 +67,7 @@
 #include "ui/gfx/switches.h"
 
 #if defined(CASTANETS)
+#include "content/public/browser/child_process_launcher_utils.h"
 #include "gpu/config/gpu_switches.h"
 #include "ui/gl/gl_switches.h"
 #endif
@@ -1005,6 +1006,22 @@ int ContentMainRunnerImpl::Run(bool start_service_manager_only) {
     return RunBrowserProcessMain(main_params, delegate_);
   }
 #endif  // !defined(CHROME_MULTIPLE_DLL_CHILD)
+
+#if defined(CASTANETS)
+  // Launch utility process on Renderer side.
+  if (process_type == switches::kRendererProcess &&
+      !base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableForking)) {
+    std::string enabled_features =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kEnableFeatures);
+    if (enabled_features.find("NetworkService") != std::string::npos) {
+      base::TaskScheduler::CreateAndStartWithDefaultParams("Launcher");
+      GetProcessLauncherTaskRunner()->PostTask(
+          FROM_HERE, base::BindOnce(&LaunchUtilityProcess));
+    }
+  }
+#endif
 
   return RunOtherNamedProcessTypeMain(process_type, main_params, delegate_);
 }

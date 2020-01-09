@@ -309,4 +309,40 @@ void ChildProcessLauncherHelper::OnChildProcessStarted(
 
 }  // namespace internal
 
+#if defined(CASTANETS)
+base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject>>::Leaky
+    __java_peer = LAZY_INSTANCE_INITIALIZER;
+
+void LaunchUtilityProcess() {
+  base::CommandLine::SwitchMap switches =
+      base::CommandLine::ForCurrentProcess()->GetSwitches();
+  switches.erase(switches::kProcessType);
+  base::CommandLine command_line(
+      base::CommandLine::ForCurrentProcess()->GetProgram());
+  for (const auto& sw : switches)
+    command_line.AppendSwitchNative(sw.first, sw.second);
+  command_line.AppendSwitchASCII(switches::kProcessType,
+                                 switches::kUtilityProcess);
+  LOG(INFO) << "Launch UtilityProcess. " << command_line.GetCommandLineString();
+
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(env);
+
+  // Create the Command line String[]
+  ScopedJavaLocalRef<jobjectArray> j_argv =
+      ToJavaArrayOfStrings(env, command_line.argv());
+
+  ScopedJavaLocalRef<jclass> j_file_info_class = base::android::GetClass(
+      env, "org/chromium/base/process_launcher/FileDescriptorInfo");
+  ScopedJavaLocalRef<jobjectArray> j_file_infos(
+      env, env->NewObjectArray(0, j_file_info_class.obj(), nullptr));
+  base::android::CheckException(env);
+
+  // ScopedJavaGlobalRef<jobject> java_peer;
+  __java_peer.Get().Reset(
+      internal::Java_ChildProcessLauncherHelperImpl_createAndStart(
+          env, reinterpret_cast<intptr_t>(0), j_argv, j_file_infos));
+}
+#endif
+
 }  // namespace content
