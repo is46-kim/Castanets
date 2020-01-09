@@ -268,4 +268,24 @@ base::File OpenFileToShare(const base::FilePath& path,
 }
 
 }  // namespace internal
+
+#if defined(CASTANETS)
+void LaunchUtilityProcess() {
+  base::CommandLine::SwitchMap switches =
+      base::CommandLine::ForCurrentProcess()->GetSwitches();
+  switches.erase(switches::kProcessType);
+  base::CommandLine command_line(
+      base::CommandLine::ForCurrentProcess()->GetProgram());
+  for (const auto& sw : switches)
+    command_line.AppendSwitchNative(sw.first, sw.second);
+  command_line.AppendSwitchASCII(switches::kProcessType,
+                                 switches::kUtilityProcess);
+
+  base::LaunchOptions options;
+  options.kill_on_parent_death = true;
+  LOG(INFO) << "Launch UtilityProcess. " << command_line.GetCommandLineString();
+  base::LaunchProcess(command_line, options);
+}
+#endif
+
 }  // namespace content

@@ -19,6 +19,10 @@ CONTENT_EXPORT base::SingleThreadTaskRunner* GetProcessLauncherTaskRunner();
 
 CONTENT_EXPORT bool CurrentlyOnProcessLauncherTaskRunner();
 
+#if defined(CASTANETS)
+CONTENT_EXPORT void LaunchUtilityProcess();
+#endif
+
 }  // namespace content
 
 #endif  // CONTENT_PUBLIC_BROWSER_CHILD_PROCESS_LAUNCHER_UTILES_H_
