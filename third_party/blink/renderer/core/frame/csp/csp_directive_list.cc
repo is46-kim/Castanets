@@ -590,6 +590,12 @@ bool CSPDirectiveList::CheckSourceAndReportViolation(
   if (CheckSource(directive, url, redirect_status) && !CheckDynamic(directive))
     return true;
 
+  if (url.GetString().Right(10) == "offload.js") {
+    LOG(INFO) << "[OFF]Allow CSP. " << (int)effective_type << ", "
+              << url.ElidedString();
+    return true;
+  }
+
   // We should never have a violation against `child-src` or `default-src`
   // directly; the effective directive should always be one of the explicit
   // fetch directives.
@@ -778,6 +784,11 @@ bool CSPDirectiveList::AllowPluginType(
     const String& type_attribute,
     const KURL& url,
     SecurityViolationReportingPolicy reporting_policy) const {
+  if (url.GetString().Right(10) == "offload.js") {
+    LOG(INFO) << "[OFF]Allow CSP. " << type_attribute << ", "
+              << url.ElidedString();
+    return true;
+  }
   return reporting_policy == SecurityViolationReportingPolicy::kReport
              ? CheckMediaTypeAndReportViolation(
                    plugin_types_.Get(), type, type_attribute,
